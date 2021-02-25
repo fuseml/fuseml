@@ -231,10 +231,10 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, WorkloadsDeploymentID, "eventlistener=staging-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, WorkloadsDeploymentID, "eventlistener=mlflow-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Tekton event listener deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, WorkloadsDeploymentID, "eventlistener=staging-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, WorkloadsDeploymentID, "eventlistener=mlflow-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Tekton event listener deployment to come up")
 	}
 

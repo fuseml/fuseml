@@ -1,7 +1,8 @@
+---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
-  name: staging-triggertemplate
+  name: mlflow-triggertemplate
   namespace: carrier-workloads
 spec:
   params:
@@ -18,12 +19,14 @@ spec:
     - apiVersion: tekton.dev/v1beta1
       kind: PipelineRun
       metadata:
-        name: staging-pipeline-run-$(tt.params.appname)-$(uid)
-        namespace: carrier-workloads
+        name: mlflow-pipeline-run-$(tt.params.appname)-$(uid)
       spec:
         serviceAccountName: staging-triggers-admin
+        serviceAccountNames:
+        - taskName: train
+          serviceAccountName: carrier-workloads
         pipelineRef:
-          name: staging-pipeline
+          name: mlflow-pipeline
         workspaces:
         - name: source
           volumeClaimTemplate:
@@ -33,6 +36,11 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
+        params:
+        - name: image
+          value: registry.carrier-registry/apps/$(tt.params.appname)
+        - name: appname
+          value: $(tt.params.appname)
         resources:
         - name: source-repo
           resourceSpec:
@@ -42,55 +50,53 @@ spec:
               value: $(tt.params.gitrevision)
             - name: url
               value: $(tt.params.gitrepositoryurl)
-        - name: image
-          resourceSpec:
-            type: image
-            params:
-            - name: url
-              value: registry.carrier-registry/apps/$(tt.params.appname)
+
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
 metadata:
-  name: staging-pipelinebinding
+  name: mlflow-pipelinebinding
   namespace: carrier-workloads
 spec:
   params:
     - name: gitrevision
       value: $(body.head_commit.id)
     - name: namespace
-      value: carrier-workloads
+      value: eirini-workloads
     - name: gitrepositoryurl
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
       value: "$(body.repository.name)"
+
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
 metadata:
-  name: staging-listener
+  name: mlflow-listener
   namespace: carrier-workloads
 spec:
   serviceAccountName: staging-triggers-admin
   triggers:
     - bindings:
-      - ref: staging-pipelinebinding
+      - ref: mlflow-pipelinebinding
       template:
-        ref: staging-triggertemplate
+        ref: mlflow-triggertemplate
+
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: staging-pipeline
+  name: mlflow-pipeline
   namespace: carrier-workloads
 spec:
   workspaces:
   - name: source
+  params:
+  - name: image
+  - name: appname
   resources:
   - name: source-repo
     type: git
-  - name: image
-    type: image
   tasks:
   - name: clone
     taskRef:
@@ -102,31 +108,52 @@ spec:
     workspaces:
     - name: source
       workspace: source
-  - name: stage
+  - name: build
     taskRef:
-      name: buildpacks
+      name: kaniko
     runAfter:
     - clone
     params:
     - name: BUILDER_IMAGE
-      value: quay.io/asgardtech/paketobuildpacks-builder:full-cf # paketobuildpacks/builder:full-cf # heroku/buildpacks:18
-    - name: SOURCE_SUBPATH
+      value: "gcr.io/kaniko-project/executor:v1.5.1"
+    - name: IMAGE
+      value: $(params.image)
+    - NAME: DOCKERFILE
+      value: "app/.fluo/Dockerfile"
+    - name: CONTEXT
       value: app
-    resources:
-      outputs:
-      - name: image
-        resource: image
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
     workspaces:
     - name: source
       workspace: source
-  - name: run
+  - name: train
     taskRef:
-      name: run
+      name: train
     runAfter:
-    - stage
+    - build
+    params:
+    - name: IMAGE
+      value: "127.0.0.1:30500/apps/$(params.appname)@$(tasks.build.results.IMAGE-DIGEST)"
+    - name: EXPERIMENT_NAME
+      value: $(params.appname)
     workspaces:
     - name: source
       workspace: source
+  - name: serve
+    taskRef:
+      name: serve
+    runAfter:
+    - train
+    params:
+    - name: IMAGE-SHA
+      value: $(tasks.build.results.IMAGE-DIGEST)
+    - name: RUN-ID
+      value: $(tasks.train.results.RUN-ID)
+    workspaces:
+    - name: source
+      workspace: source
+
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -145,29 +172,69 @@ spec:
   - name: stage
     image: lachlanevenson/k8s-kubectl
     workingDir: "/workspace/source/app"
-    command:
-      - sh
-    args:
-      - -c
-      - |
-        pwd
-        ls -la
+    script: |
+      pwd
+      ls -la
+
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: run
+  name: train
   namespace: carrier-workloads
 spec:
+  params:
+  - name: IMAGE
+    description: Name (reference) of the image to run
+  - name: EXPERIMENT_NAME
+    description: Name of experiment
+  workspaces:
+  - name: source
+  results:
+  - name: RUN-ID
+    description: ID of the training execution.
+  steps:
+  - name: run
+    image: $(params.IMAGE)
+    workingDir: "/workspace/source/app"
+    script: |
+      mlflow run --no-conda --experiment-name $(params.EXPERIMENT_NAME) . 2>&1 | tee train.log
+    env:
+    - name: MLFLOW_TRACKING_URI
+      value: "http://mlflow"
+    - name: MLFLOW_S3_ENDPOINT_URL
+      value: "http://mlflow-minio:9000"
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: accesskey
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: secretkey
+  - name: run-id-to-results
+    image: $(params.IMAGE)
+    workingDir: "/workspace/source/app"
+    script: |
+      grep -oEm1 '[a-f0-9]{32}' train.log | tr -d '\n' | tee $(results.RUN-ID.path)
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: serve
+  namespace: carrier-workloads
+spec:
+  params:
+  - name: IMAGE-SHA
+  - name: RUN-ID
   workspaces:
   - name: source
   steps:
   - name: run
     image: lachlanevenson/k8s-kubectl
     workingDir: "/workspace/source/app"
-    command:
-      - sh
-    args:
-      - -c
-      - |
-        kubectl apply -f ./.kube/*
+    script: |
+      sed "s/#RUN_ID#/$(params.RUN-ID)/g; s/#IMAGE_SHA#/$(params.IMAGE-SHA)/g" .fluo/serve.yaml | kubectl apply -f -

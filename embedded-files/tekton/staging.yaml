@@ -1,136 +1,76 @@
-# Copied from https://github.com/tektoncd/catalog/blob/master/task/buildpacks/0.2/buildpacks.yaml
-# Modified to mount ca certs
+# Copied from https://github.com/tektoncd/catalog/blob/master/task/kaniko/0.1/kaniko.yaml
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: buildpacks
+  name: kaniko
   labels:
-    app.kubernetes.io/version: "0.2"
+    app.kubernetes.io/version: "0.1"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: image-build
-    tekton.dev/displayName: "buildpacks"
 spec:
   description: >-
-    The Buildpacks task builds source into a container image and pushes it to a registry,
-    using Cloud Native Buildpacks.
-    Cloud Native Buildpacks are pluggable, modular tools that transform application source code
-    into OCI images. They replace Dockerfiles in the app development lifecycle, and allow for swift
-    rebasing of images, and give modular control over images through the use of builders, among other
-    benefits. This command uses a builder to construct the image, and pushes it to the registry provided.
+    This Task builds source into a container image using Google's kaniko tool.
+
+    Kaniko doesn't depend on a Docker daemon and executes each
+    command within a Dockerfile completely in userspace. This enables
+    building container images in environments that can't easily or
+    securely run a Docker daemon, such as a standard Kubernetes cluster.
+
   params:
-    - name: BUILDER_IMAGE
-      description: The image on which builds will run (must include lifecycle and compatible buildpacks).
-    - name: CACHE
-      description: The name of the persistent app cache volume.
-      default: empty-dir
-    - name: CACHE_IMAGE
-      description: The name of the persistent app cache image.
-      default: ""
-    - name: PLATFORM_DIR
-      description: The name of the platform directory.
-      default: empty-dir
-    - name: USER_ID
-      description: The user ID of the builder image user.
-      default: "1000"
-    - name: GROUP_ID
-      description: The group ID of the builder image user.
-      default: "1000"
-    - name: PROCESS_TYPE
-      description: The default process type to set on the image.
-      default: "web"
-    - name: SOURCE_SUBPATH
-      description: A subpath within the `source` input where the source to build is located.
-      default: ""
-    - name: SKIP_RESTORE
-      description: Do not write layer metadata or restore cached layers
-      default: "false"
-    - name: RUN_IMAGE
-      description: Reference to a run image to use
-      default: ""
-
-  resources:
-    outputs:
-      - name: image
-        type: image
-
+  - name: IMAGE
+    description: Name (reference) of the image to build.
+  - name: DOCKERFILE
+    description: Path to the Dockerfile to build.
+    default: ./Dockerfile
+  - name: CONTEXT
+    description: The build context used by Kaniko.
+    default: ./
+  - name: EXTRA_ARGS
+    default: ""
+  - name: BUILDER_IMAGE
+    description: The image on which builds will run
+    default: gcr.io/kaniko-project/executor@sha256:e36c9fa99279217c4bb8ee172819b441c3ca8ef946dc0e28b21721eefb2ba70a
   workspaces:
-    - name: source
-
-  stepTemplate:
-    env:
-      - name: CNB_PLATFORM_API
-        value: "0.3"
+  - name: source
+  results:
+  - name: IMAGE-DIGEST
+    description: Digest of the image just built.
 
   steps:
-    - name: prepare
-      # Latest alpine as of Oct 22, 2020
-      image: quay.io/jitesoft/alpine:3.11
-      imagePullPolicy: Always
-      command: ["/bin/sh"]
-      args:
-        - "-c"
-        - |-
-          chown -R "$(params.USER_ID):$(params.GROUP_ID)" "/tekton/home" &&
-          chown -R "$(params.USER_ID):$(params.GROUP_ID)" "/layers" &&
-          chown -R "$(params.USER_ID):$(params.GROUP_ID)" "/cache" &&
-          chown -R "$(params.USER_ID):$(params.GROUP_ID)" "$(workspaces.source.path)"
-      volumeMounts:
-        - name: layers-dir
-          mountPath: /layers
-        - name: $(params.CACHE)
-          mountPath: /cache
-    - name: create
-      image: $(params.BUILDER_IMAGE)
-      imagePullPolicy: Always
-      # command: ["sh"]
-      # args:
-      # - -c
-      # - "sleep 3600"
-      command: ["/cnb/lifecycle/creator"]
-      args:
-        - "-app=$(workspaces.source.path)/$(params.SOURCE_SUBPATH)"
-        - "-cache-dir=/cache"
-        - "-cache-image=$(params.CACHE_IMAGE)"
-        - "-gid=$(params.GROUP_ID)"
-        - "-layers=/layers"
-        - "-platform=/platform"
-        - "-process-type=$(params.PROCESS_TYPE)"
-        - "-skip-restore=$(params.SKIP_RESTORE)"
-        - "-previous-image=$(resources.outputs.image.url)"
-        - "-run-image=$(params.RUN_IMAGE)"
-        - "-uid=$(params.USER_ID)"
-        - "$(resources.outputs.image.url)"
-      volumeMounts:
-        - name: layers-dir
-          mountPath: /layers
-        - name: $(params.CACHE)
-          mountPath: /cache
-        - name: $(params.PLATFORM_DIR)
-          mountPath: /platform
-        - name: registry-certs-self
-          mountPath: /etc/ssl/cert.pem
-          subPath: ca
-          readOnly: true
-        - name: registry-certs-self2
-          mountPath: /etc/ssl/certs/{{CA_SELF_HASHED_NAME}}
-          subPath: ca
-          readOnly: true
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-  volumes:
-    - name: empty-dir
-      emptyDir: {}
-    - name: layers-dir
-      emptyDir: {}
-    - name: registry-certs
-      secret:
-        secretName: registry-tls
-    - name: registry-certs-self
-      secret:
-        secretName: registry-tls-self
-    - name: registry-certs-self2
-      secret:
-        secretName: registry-tls-self
+  - name: build-and-push
+    workingDir: $(workspaces.source.path)
+    image: $(params.BUILDER_IMAGE)
+    # specifying DOCKER_CONFIG is required to allow kaniko to detect docker credential
+    # https://github.com/tektoncd/pipeline/pull/706
+    env:
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
+    command:
+    - /kaniko/executor
+    - $(params.EXTRA_ARGS)
+    - --dockerfile=$(params.DOCKERFILE)
+    - --context=$(workspaces.source.path)/$(params.CONTEXT)  # The user does not need to care the workspace and the source.
+    - --destination=$(params.IMAGE)
+    - --oci-layout-path=$(workspaces.source.path)/$(params.CONTEXT)/image-digest
+    # kaniko assumes it is running as root, which means this example fails on platforms
+    # that default to run containers as random uid (like OpenShift). Adding this securityContext
+    # makes it explicit that it needs to run as root.
+    securityContext:
+      runAsUser: 0
+  - name: write-digest
+    workingDir: $(workspaces.source.path)
+    image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/imagedigestexporter:v0.16.2
+    # output of imagedigestexport [{"key":"digest","value":"sha256:eed29..660","resourceRef":{"name":"myrepo/myimage"}}]
+    command: ["/ko-app/imagedigestexporter"]
+    args:
+    - -images=[{"name":"$(params.IMAGE)","type":"image","url":"$(params.IMAGE)","digest":"","OutputImageDir":"$(workspaces.source.path)/$(params.CONTEXT)/image-digest"}]
+    - -terminationMessagePath=$(params.CONTEXT)/image-digested
+    securityContext:
+      runAsUser: 0
+  - name: digest-to-results
+    workingDir: $(workspaces.source.path)
+    image: docker.io/stedolan/jq@sha256:a61ed0bca213081b64be94c5e1b402ea58bc549f457c2682a86704dd55231e09
+    script: |
+      cat $(params.CONTEXT)/image-digested | jq '.[0].value' -rj | tee /tekton/results/IMAGE-DIGEST

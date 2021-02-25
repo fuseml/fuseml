@@ -35,7 +35,7 @@ var (
 
 	// StagingEventListenerURL should not exist
 	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener.carrier-workloads:8080"
+	StagingEventListenerURL = "http://el-mlflow-listener.carrier-workloads:8080"
 )
 
 // CarrierClient provides functionality for talking to a
@@ -465,14 +465,36 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 		return "", errors.Wrap(err, "failed to copy app sources to temp location")
 	}
 
-	err = os.MkdirAll(filepath.Join(tmpDir, ".kube"), 0700)
+	err = os.MkdirAll(filepath.Join(tmpDir, ".fluo"), 0700)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
+	dockerfileDef := fmt.Sprintf(`
+FROM private-registry.prv.suse.net/framalho/mlflow-runner:1.13.1
+
+COPY conda.yaml /env/
+RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
+	sed -i "s/base/$env/" /root/.bashrc
+
+ENV BASH_ENV /root/.bashrc
+RUN conda env create -f /env/conda.yaml
+	`)
+
 	route, err := c.appDefaultRoute(name)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to calculate default app route")
+	}
+
+	dockerFile, err := os.Create(filepath.Join(tmpDir, ".fluo", "Dockerfile"))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create file for fluo resource definitions")
+	}
+	defer func() { err = dockerFile.Close() }()
+
+	_, err = dockerFile.WriteString(dockerfileDef)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to write fluo Dockerfile definition")
 	}
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
@@ -505,18 +527,37 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
-        image: "127.0.0.1:30500/apps/{{ .AppName }}"
+        image: "127.0.0.1:30500/apps/{{ .AppName }}@#IMAGE_SHA#"
+        command:
+        - bash
+        args:
+        - -c
+        - |
+          model_uri="$(mlflow runs describe --run-id #RUN_ID# | grep -oEm1 's3.*artifacts')/model"
+          mlflow models serve --no-conda -h 0.0.0.0 -p 8080 -m ${model_uri}
         ports:
         - containerPort: 8080
         env:
-        - name: PORT
-          value: "8080"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow/"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "http://mlflow-minio:9000/"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: accesskey
+              name: mlflow-minio
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: secretkey
+              name: mlflow-minio
   `)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse deployment template for app")
 	}
 
-	appFile, err := os.Create(filepath.Join(tmpDir, ".kube", "app.yml"))
+	appFile, err := os.Create(filepath.Join(tmpDir, ".fluo", "serve.yaml"))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create file for kube resource definitions")
 	}
@@ -568,7 +609,7 @@ git remote add carrier "%s"
 git fetch --all
 git reset --soft carrier/main
 git add --all
-git commit -m "pushed at %s"
+git commit --no-gpg-sign -m "pushed at %s"
 git push carrier master:main
 `, tmpDir, u.String(), time.Now().Format("20060102150405")))
 
@@ -622,7 +663,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
-		300)
+		600)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}

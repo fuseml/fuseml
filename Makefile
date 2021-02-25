@@ -24,6 +24,9 @@ build-windows: lint
 build-darwin: lint
 	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-amd64
 
+build-darwin-arm64: lint
+	GOARCH="arm64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-arm64
+
 compress:
 	upx --brute -1 ./dist/carrier-linux-arm32
 	upx --brute -1 ./dist/carrier-linux-arm64
