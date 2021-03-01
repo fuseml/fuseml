@@ -10,8 +10,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Apps", func() {
-	var org = "apps-org"
+var _ = Describe("MLflow Model", func() {
+	var org = "mlflow-org"
 	BeforeEach(func() {
 		out, err := Carrier("create-org "+org, "")
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -21,22 +21,22 @@ var _ = Describe("Apps", func() {
 	Describe("push and delete", func() {
 		var appName string
 		BeforeEach(func() {
-			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+			appName = "mlflow-" + strconv.Itoa(int(time.Now().Nanosecond()))
 		})
 
-		It("pushes and deletes an app", func() {
-			By("pushing the app")
+		It("pushes and deletes an mlflow model", func() {
+			By("pushing the mlflow model")
 			currentDir, err := os.Getwd()
 			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "../sample-app")
+			appDir := path.Join(currentDir, "../mlflow-model")
 
-			out, err := Carrier("push "+appName, appDir)
+			out, err := Carrier("push --verbosity 1 "+appName, appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 
-			By("deleting the app")
+			By("deleting the mlflow model")
 			out, err = Carrier("delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
