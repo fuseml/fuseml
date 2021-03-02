@@ -484,7 +484,7 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 	}
 
 	dockerfileDef := fmt.Sprintf(`
-FROM private-registry.prv.suse.net/framalho/mlflow-runner:1.14.0
+FROM ghcr.io/projectfluo/mlflow-runner:1.14.0
 
 COPY conda.yaml /env/
 RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
