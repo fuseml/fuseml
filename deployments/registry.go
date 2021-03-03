@@ -144,7 +144,8 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + RegistryDeploymentID + " present already")
+		ui.Exclamation().Msg("Namespace " + RegistryDeploymentID + " already present, skipping installation")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
