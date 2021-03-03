@@ -12,7 +12,7 @@ var ()
 var CmdInfo = &cobra.Command{
 	Use:   "info",
 	Short: "Shows information about the Carrier environment",
-	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks and Eirini.`,
+	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {

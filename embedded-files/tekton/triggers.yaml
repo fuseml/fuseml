@@ -62,7 +62,7 @@ spec:
     - name: gitrevision
       value: $(body.head_commit.id)
     - name: namespace
-      value: eirini-workloads
+      value: carrier-workloads
     - name: gitrepositoryurl
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
