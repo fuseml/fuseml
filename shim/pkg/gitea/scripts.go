@@ -46,10 +46,9 @@ curl -sSL -X POST "http://drone.$target/api/repos/$user/$app_name" \
 const DeleteAppScript = `#!/bin/bash
   app_name="{{ .AppName }}"
 
-  kubectl delete image -n eirini-workloads "$app_name"
-  kubectl delete lrp -n eirini-workloads "$app_name"
-  kubectl delete service -n eirini-workloads "$app_name"
-  kubectl delete ingress -n eirini-workloads "$app_name"
+  kubectl delete image -n carrier-workloads "$app_name"
+  kubectl delete service -n carrier-workloads "$app_name"
+  kubectl delete ingress -n carrier-workloads "$app_name"
 `
 
 // PrepareCodeScript generates support files for pushing an app
@@ -82,7 +81,7 @@ apiVersion: kpack.io/v1alpha1
 kind: Image
 metadata:
   name: $app_name
-  namespace: eirini-workloads
+  namespace: carrier-workloads
 spec:
   tag: $image_user/carrier-$app_name
   serviceAccount: app-serviceaccount
@@ -93,29 +92,6 @@ spec:
     git:
       url: http://gitea.$target/$user/$app_name
       revision: main
----
-# DEPLOYMENT
-apiVersion: eirini.cloudfoundry.org/v1
-kind: LRP
-metadata:
-  name: $app_name
-  namespace: eirini-workloads
-spec:
-  GUID: "$app_name"
-  version: "version-1"
-  appName: "$app_name"
-  instances: 1
-  lastUpdated: "never"
-  diskMB: 100
-  runsAsRoot: true
-  env:
-    PORT: "8080"
-  ports:
-  - 8080
-  image: "$image_user/carrier-$app_name"
-  appRoutes:
-  - hostname: $app_name.$target
-    port: 8080
 EOF
 `
 
@@ -166,7 +142,7 @@ curl -sSL "http://drone.$target/api/user/token" \
 // StagingStatusScript returns a status for the app
 const StagingStatusScript = `
 app_name="{{ .AppName }}"
-image_status=$(kubectl get image -n eirini-workloads $app_name -o json | jq -r '.status.conditions[] | select(.type == "Ready").status')
+image_status=$(kubectl get image -n carrier-workloads $app_name -o json | jq -r '.status.conditions[] | select(.type == "Ready").status')
 
 if [ "$image_status" = "True" ]; then
   echo "STAGED"
