@@ -100,7 +100,7 @@ func createCluster() {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+	_, err := RunProc("k3d cluster create --k3s-server-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-server-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' "+name, nodeTmpDir, false)
 	if err != nil {
 		panic("Creating k3d cluster failed: " + err.Error())
 	}
