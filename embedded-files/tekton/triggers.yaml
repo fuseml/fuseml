@@ -35,7 +35,7 @@ spec:
                 - ReadWriteOnce
               resources:
                 requests:
-                  storage: 1Gi
+                  storage: 2Gi
         params:
         - name: image
           value: registry.carrier-registry/apps/$(tt.params.appname)
