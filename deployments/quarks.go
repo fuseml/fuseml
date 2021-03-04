@@ -145,7 +145,8 @@ func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + QuarksDeploymentID + " present already")
+		ui.Exclamation().Msg("Namespace " + QuarksDeploymentID + " already present, skipping installation")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Quarks...")

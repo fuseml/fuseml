@@ -201,7 +201,8 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + GiteaDeploymentID + " present already")
+		ui.Exclamation().Msg("Namespace " + GiteaDeploymentID + " already present, skipping installation")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Gitea...")
