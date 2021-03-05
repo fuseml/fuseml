@@ -112,30 +112,7 @@ func (k MLflow) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return err
 	}
 	subdomain := MLflowDeploymentID + "." + domain
-
-	config := fmt.Sprintf(`
-expose:
-  tls:
-    enabled: false
-  ingress:
-    hosts:
-      - %s
-    annotations:
-      kubernetes.io/ingress.class: traefik
-
-minio:
-  ingress:
-    hosts:
-      - %s
-    annotations:
-      kubernetes.io/ingress.class: traefik
-`, subdomain, "minio."+subdomain)
-
-	configPath, err := helpers.CreateTmpFile(config)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(configPath)
+	configPath := ""
 
 	helmCmd := fmt.Sprintf("helm list --namespace %s -q | grep %s", mlflowNamespace, MLflowDeploymentID)
 	out, err := helpers.RunProc(helmCmd, currentdir, k.Debug)
@@ -144,7 +121,52 @@ minio:
 		return nil
 	}
 
-	helmCmd = fmt.Sprintf("helm %s %s --create-namespace --values %s --namespace %s %s", action, MLflowDeploymentID, configPath, mlflowNamespace, tarPath)
+	if c.HasIstio() {
+		message := "Creating istio ingress gateway"
+		out, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.CreateIstioIngressGateway("mlflow", mlflowNamespace, subdomain, "mlflow", 80)
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+
+		out, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.CreateIstioIngressGateway("minio", mlflowNamespace, "minio."+domain, "mlflow-minio", 9000)
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+	} else {
+		config := fmt.Sprintf(`
+ingress:
+    enabled: true
+    hosts:
+      - %s
+    annotations:
+      kubernetes.io/ingress.class: traefik
+    tls:
+      enabled: false
+minio:
+  ingress:
+    enabled: true
+    hosts:
+      - %s
+    annotations:
+      kubernetes.io/ingress.class: traefik
+`, subdomain, "minio."+subdomain)
+
+		configPath, err = helpers.CreateTmpFile(config)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(configPath)
+	}
+
+	helmCmd = fmt.Sprintf("helm %s %s --create-namespace --values '%s' --namespace %s %s", action, MLflowDeploymentID, configPath, mlflowNamespace, tarPath)
 	if out, err = helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing MLflow: " + out)
 	}

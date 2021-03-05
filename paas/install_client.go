@@ -171,25 +171,33 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 
 func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
-		ip := ""
-		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-		defer s.Stop()
-		err := helpers.RunToSuccessWithTimeout(
-			func() error {
-				return c.fetchIP(&ip)
-			}, time.Duration(2)*time.Minute, 3*time.Second)
-		if err != nil {
-			if strings.Contains(err.Error(), "Timed out after") {
-				return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
-					"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
-					"Follow these steps to enable this ability\n" +
-					"https://github.com/SUSE/carrier/blob/main/docs/install.md")
+		if c.kubeClient.HasIstio() {
+			var err error
+			domain.Value, err = c.fetchKnativeDomain()
+			if err != nil {
+				return errors.New("couldn't set system domain")
 			}
-			return err
-		}
+		} else {
+			ip := ""
+			s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+			defer s.Stop()
+			err := helpers.RunToSuccessWithTimeout(
+				func() error {
+					return c.fetchIP(&ip)
+				}, time.Duration(2)*time.Minute, 3*time.Second)
+			if err != nil {
+				if strings.Contains(err.Error(), "Timed out after") {
+					return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
+						"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
+						"Follow these steps to enable this ability\n" +
+						"https://github.com/SUSE/carrier/blob/main/docs/install.md")
+				}
+				return err
+			}
 
-		if ip != "" {
-			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+			if ip != "" {
+				domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+			}
 		}
 	}
 
@@ -213,4 +221,17 @@ func (c *InstallClient) fetchIP(ip *string) error {
 	*ip = ingress[0].IP
 
 	return nil
+}
+
+func (c *InstallClient) fetchKnativeDomain() (string, error) {
+	knDomainConfig, err := c.kubeClient.Kubectl.CoreV1().ConfigMaps("knative-serving").Get(context.Background(), "config-domain", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	for domain := range knDomainConfig.Data {
+		if !strings.HasSuffix(domain, "example") {
+			return domain, nil
+		}
+	}
+	return "", err
 }

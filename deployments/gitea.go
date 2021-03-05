@@ -109,9 +109,11 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 	}
 	subdomain := GiteaDeploymentID + "." + domain
 
+	hasIstio := c.HasIstio()
+
 	config := fmt.Sprintf(`
 ingress:
-  enabled: true
+  enabled: %t
   hosts:
     - %s
   annotations:
@@ -153,7 +155,7 @@ gitea:
     oauth2:
       ENABLE: true
       JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
-`, subdomain, subdomain, "http://"+subdomain)
+`, !hasIstio, subdomain, subdomain, "http://"+subdomain)
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {
@@ -169,6 +171,18 @@ gitea:
 	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
 	if err != nil {
 		return err
+	}
+
+	if hasIstio {
+		message := "Creating istio ingress gateway"
+		out, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.CreateIstioIngressGateway("gitea", GiteaDeploymentID, subdomain, "gitea-http", 10080)
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
 	}
 
 	for _, podname := range []string{

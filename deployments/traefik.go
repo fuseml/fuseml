@@ -156,6 +156,11 @@ func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return nil
 	}
 
+	if c.HasIstio() {
+		ui.Exclamation().Msg("Istio already installed, skipping traefik installation...")
+		return nil
+	}
+
 	ui.Note().KeeplineUnder(1).Msg("Deploying Traefik Ingress...")
 
 	return k.apply(c, ui, options, false)

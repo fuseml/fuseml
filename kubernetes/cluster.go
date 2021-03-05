@@ -457,3 +457,16 @@ func (c *Cluster) DeleteNamespace(namespace string) error {
 	}
 	return nil
 }
+
+// HasIstio checks if istio is installed on the cluster
+func (c *Cluster) HasIstio() bool {
+	_, err := c.Kubectl.CoreV1().Services("istio-system").Get(
+		context.Background(),
+		"istiod",
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return false
+	}
+	return true
+}

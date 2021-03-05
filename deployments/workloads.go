@@ -81,16 +81,18 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 		return err
 	}
 
-	if out, err := helpers.KubectlApplyEmbeddedYaml(appIngressYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", appIngressYamlPath, out))
-	}
+	if !c.HasIstio() {
+		if out, err := helpers.KubectlApplyEmbeddedYaml(appIngressYamlPath); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", appIngressYamlPath, out))
+		}
 
-	if err := c.LabelNamespace("app-ingress", kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
-		return err
-	}
+		if err := c.LabelNamespace("app-ingress", kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
+			return err
+		}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, "app-ingress", "name=app-ingress", w.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting app-ingress deployment to exist")
+		if err := c.WaitUntilPodBySelectorExist(ui, "app-ingress", "name=app-ingress", w.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting app-ingress deployment to exist")
+		}
 	}
 
 	ui.Success().Msg("Workloads deployed")
