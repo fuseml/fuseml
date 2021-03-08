@@ -34,11 +34,14 @@ compress:
 	upx --brute -1 ./dist/carrier-windows-amd64
 	upx --brute -1 ./dist/carrier-darwin-amd64
 
-test: lint
+test:
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
-test-acceptance:
+test-acceptance-traefik:
 	@./scripts/test-acceptance.sh
+
+test-acceptance-istio/knative:
+	@./scripts/test-acceptance.sh -- -with-knative=true
 
 generate:
 	go generate ./...
@@ -87,6 +90,12 @@ tools-versions:
 
 version:
 	@./scripts/version.sh
+
+istio-install:
+	@./scripts/istio-minimal-install.sh
+
+knative-install: istio-install
+	@./scripts/knative-install.sh
 
 ########################################################################
 # Kube dev environments

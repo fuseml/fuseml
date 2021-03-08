@@ -34,7 +34,11 @@ var _ = Describe("MLflow Model", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
+			routeRegex := `.*\|.*1\/1.*\|.*`
+			if withKnative {
+				routeRegex = `.*\|.*[0,1]\/[0,1].*\|.*`
+			}
+			Expect(out).To(MatchRegexp(appName + routeRegex))
 
 			By("deleting the mlflow model")
 			out, err = Carrier("delete "+appName, "")

@@ -5,7 +5,8 @@
 # tests.
 if [ -z ${CARRIER_ACCEPTANCE_KUBECONFIG+x} ]; then
   #ginkgo -p -stream acceptance/.
-  ginkgo -nodes 2 -stream acceptance/.
+  ginkgo -nodes 2 -stream acceptance/. ${@}
 else
-  ginkgo acceptance/.
+  ginkgo acceptance/. ${@}
+
 fi
