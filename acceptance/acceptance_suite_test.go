@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,12 @@ func TestAcceptance(t *testing.T) {
 }
 
 var nodeSuffix, nodeTmpDir string
+
+var withKnative bool
+
+func init() {
+	flag.BoolVar(&withKnative, "with-knative", false, "test carrier with knative pre-installed")
+}
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
@@ -74,6 +81,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
+	if withKnative {
+		fmt.Printf("Installing Knative on node %d\n", config.GinkgoConfig.ParallelNode)
+		installKnative()
+	}
+
 	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	installCarrier()
 })
@@ -102,7 +114,7 @@ func createCluster() {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	_, err := RunProc("k3d cluster create --k3s-server-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-server-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' "+name, nodeTmpDir, false)
+	_, err := RunProc("k3d cluster create --k3s-server-arg '--no-deploy=traefik' --k3s-server-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-server-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' "+name, nodeTmpDir, false)
 	if err != nil {
 		panic("Creating k3d cluster failed: " + err.Error())
 	}
@@ -136,6 +148,13 @@ func deleteTmpDir() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed deleting temp dir %s: %s\n",
 			nodeTmpDir, err.Error()))
+	}
+}
+
+func installKnative() {
+	_, err := RunProc("make knative-install", "..", false)
+	if err != nil {
+		panic("Installing Knative failed: " + err.Error())
 	}
 }
 

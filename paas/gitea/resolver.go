@@ -1,6 +1,7 @@
 package gitea
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/config"
+	versionedclient "istio.io/client-go/pkg/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -30,58 +33,31 @@ func NewResolver(config *config.Config, cluster *kubernetes.Cluster) *Resolver {
 
 // GetMainDomain finds the main domain for Carrier
 func (r *Resolver) GetMainDomain() (string, error) {
-	// Get the ingress
-	ingresses, err := r.cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")
+	var host string
+	var err error
+	if r.cluster.HasIstio() {
+		host, err = r.getHostFromIstioGateway()
+	} else {
+		host, err = r.getHostFromIngress()
+	}
 	if err != nil {
-		return "", errors.Wrap(err, "failed to list ingresses for gitea")
+		return "", err
 	}
-
-	if len(ingresses.Items) < 1 {
-		return "", errors.New("gitea ingress not found")
-	}
-
-	if len(ingresses.Items) > 1 {
-		return "", errors.New("more than one gitea ingress found")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) < 1 {
-		return "", errors.New("gitea ingress has no rules")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) > 1 {
-		return "", errors.New("gitea ingress has more than on rule")
-	}
-
-	host := ingresses.Items[0].Spec.Rules[0].Host
-
 	return strings.TrimPrefix(host, "gitea."), nil
 }
 
 // GetGiteaURL finds the URL for gitea
 func (r *Resolver) GetGiteaURL() (string, error) {
-	// Get the ingress
-	ingresses, err := r.cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")
+	var host string
+	var err error
+	if r.cluster.HasIstio() {
+		host, err = r.getHostFromIstioGateway()
+	} else {
+		host, err = r.getHostFromIngress()
+	}
 	if err != nil {
-		return "", errors.Wrap(err, "failed to list ingresses for gitea")
+		return "", err
 	}
-
-	if len(ingresses.Items) < 1 {
-		return "", errors.New("gitea ingress not found")
-	}
-
-	if len(ingresses.Items) > 1 {
-		return "", errors.New("more than one gitea ingress found")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) < 1 {
-		return "", errors.New("gitea ingress has no rules")
-	}
-
-	if len(ingresses.Items[0].Spec.Rules) > 1 {
-		return "", errors.New("gitea ingress has more than on rule")
-	}
-
-	host := ingresses.Items[0].Spec.Rules[0].Host
 
 	return fmt.Sprintf("%s://%s", r.config.GiteaProtocol, host), nil
 }
@@ -104,4 +80,69 @@ func (r *Resolver) GetGiteaCredentials() (string, string, error) {
 	}
 
 	return string(username), string(password), nil
+}
+
+func (r *Resolver) getHostFromIngress() (string, error) {
+	// Get the ingress
+	ingresses, err := r.cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list ingresses for gitea")
+	}
+
+	if len(ingresses.Items) < 1 {
+		return "", errors.New("gitea ingress not found")
+	}
+
+	if len(ingresses.Items) > 1 {
+		return "", errors.New("more than one gitea ingress found")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) < 1 {
+		return "", errors.New("gitea ingress has no rules")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) > 1 {
+		return "", errors.New("gitea ingress has more than on rule")
+	}
+
+	return ingresses.Items[0].Spec.Rules[0].Host, nil
+}
+
+func (r *Resolver) getHostFromIstioGateway() (string, error) {
+	ic, err := versionedclient.NewForConfig(r.cluster.RestConfig)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create istio client")
+	}
+
+	// Get the gateway
+	gateways, err := ic.NetworkingV1alpha3().Gateways("gitea").List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=gitea"})
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list istio gateways for gitea")
+	}
+
+	if len(gateways.Items) < 1 {
+		return "", errors.New("gitea istio gateway not found")
+	}
+
+	if len(gateways.Items) > 1 {
+		return "", errors.New("more than one gitea istio gateway found")
+	}
+
+	if len(gateways.Items[0].Spec.Servers) < 1 {
+		return "", errors.New("gitea istio gateway has no servers")
+	}
+
+	if len(gateways.Items[0].Spec.Servers) > 1 {
+		return "", errors.New("gitea istio gateway has more than one server")
+	}
+
+	if len(gateways.Items[0].Spec.Servers[0].Hosts) < 1 {
+		return "", errors.New("gitea istio gateway has no host")
+	}
+
+	if len(gateways.Items[0].Spec.Servers[0].Hosts) > 1 {
+		return "", errors.New("gitea istio gateway has more than one host")
+	}
+
+	return gateways.Items[0].Spec.Servers[0].Hosts[0], nil
 }

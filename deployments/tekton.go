@@ -221,12 +221,21 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	message = "Creating Tekton dashboard ingress"
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", createTektonIngress(c, TektonDeploymentID+"."+domain)
-		},
-	)
+	if c.HasIstio() {
+		message := "Creating Tekton dashboard istio ingress gateway"
+		_, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.CreateIstioIngressGateway("tekton", tektonNamespace, TektonDeploymentID+"."+domain, "tekton-dashboard", 9097)
+			},
+		)
+	} else {
+		message = "Creating Tekton dashboard ingress"
+		_, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return "", createTektonIngress(c, TektonDeploymentID+"."+domain)
+			},
+		)
+	}
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	knversionedclient "knative.dev/serving/pkg/client/clientset/versioned"
 )
 
 var (
@@ -139,15 +140,32 @@ func (c *CarrierClient) Apps() error {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
 		}
 
-		details.Info("kube get ingress", "App", app.Name)
-		routes, err := c.kubeClient.ListIngressRoutes(
-			c.config.CarrierWorkloadsNamespace,
-			app.Name)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
-		}
+		var routes string
+		if c.kubeClient.HasIstio() {
+			details.Info("kube get knative services", "App", app.Name)
 
-		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
+			knc, err := knversionedclient.NewForConfig(c.kubeClient.RestConfig)
+			if err != nil {
+				return errors.Wrap(err, "failed to create knative client.")
+			}
+
+			knService, err := knc.ServingV1().Services(c.config.CarrierWorkloadsNamespace).
+				Get(context.TODO(), fmt.Sprintf("%s-%s", c.config.Org, app.Name), metav1.GetOptions{})
+			if err != nil {
+				return errors.Wrap(err, "failed to get knative service")
+			}
+			routes = knService.Status.URL.String()
+		} else {
+			details.Info("kube get ingress", "App", app.Name)
+			ingRoutes, err := c.kubeClient.ListIngressRoutes(
+				c.config.CarrierWorkloadsNamespace,
+				app.Name)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
+			}
+			routes = strings.Join(ingRoutes, ", ")
+		}
+		msg = msg.WithTableRow(app.Name, status, routes)
 	}
 
 	msg.Msg("Carrier Applications:")
@@ -211,12 +229,28 @@ func (c *CarrierClient) Delete(app string) error {
 
 	c.ui.Normal().Msg("Deleted app code repository.")
 
-	details.Info("delete deployment")
+	if c.kubeClient.HasIstio() {
+		details.Info("delete knative service")
 
-	err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).
-		Delete(context.Background(), fmt.Sprintf("%s.%s", c.config.Org, app), metav1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to delete application deployment")
+		knc, err := knversionedclient.NewForConfig(c.kubeClient.RestConfig)
+		if err != nil {
+			return errors.Wrap(err, "failed to create knative client.")
+		}
+
+		err = knc.ServingV1().Services(c.config.CarrierWorkloadsNamespace).
+			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "failed to knative service")
+		}
+	} else {
+
+		details.Info("delete deployment")
+
+		err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).
+			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "failed to delete application deployment")
+		}
 	}
 
 	c.ui.Normal().Msg("Deleted app containers.")
@@ -461,8 +495,13 @@ func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to determine carrier domain")
 	}
+	route := fmt.Sprintf("%s.%s", name, domain)
 
-	return fmt.Sprintf("%s.%s", name, domain), nil
+	if c.kubeClient.HasIstio() {
+		route = fmt.Sprintf("%s-%s.%s.%s", c.config.Org, name, c.config.CarrierWorkloadsNamespace, domain)
+	}
+
+	return route, nil
 }
 
 func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
@@ -511,11 +550,26 @@ RUN conda env create -f /env/conda.yaml
 	}
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
+{{- if .HasIstio }}
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}"
+  labels:
+    fluo/app-name: "{{ .AppName }}"
+    fluo/org: "{{ .Org }}"
+    fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
+spec:
+  template:
+    metadata:
+      labels:
+        fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
+{{- else }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ .Org }}.{{ .AppName }}"
+  name: "{{ .Org }}-{{ .AppName }}"
   labels:
     carrier/app-guid:  "{{ .Org }}.{{ .AppName }}"
     carrier/app-name: "{{ .AppName }}"
@@ -529,42 +583,43 @@ spec:
     metadata:
       labels:
         app: "{{ .AppName }}"
+        fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
         # Needed for the ingress extension to work:
         cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
         # Needed for the ingress extension to work:
         cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
         cloudfoundry.org/application_name:  "{{ .AppName }}"
+{{- end }}
     spec:
       serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
-      automountServiceAccountToken: false
       containers:
-      - name: "{{ .AppName }}"
-        image: "127.0.0.1:30500/apps/{{ .AppName }}@#IMAGE_SHA#"
-        command:
-        - bash
-        args:
-        - -c
-        - |
-          model_uri="$(mlflow runs describe --run-id #RUN_ID# | grep -oEm1 's3.*artifacts')/model"
-          mlflow models serve --no-conda -h 0.0.0.0 -p 8080 -m ${model_uri}
-        ports:
-        - containerPort: 8080
-        env:
-        - name: MLFLOW_TRACKING_URI
-          value: "http://mlflow/"
-        - name: MLFLOW_S3_ENDPOINT_URL
-          value: "http://mlflow-minio:9000/"
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: accesskey
-              name: mlflow-minio
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: secretkey
-              name: mlflow-minio
+        - name: "{{ .AppName }}"
+          image: "127.0.0.1:30500/apps/{{ .AppName }}@#IMAGE_SHA#"
+          command:
+            - bash
+          args:
+            - -c
+            - |
+              model_uri="$(mlflow runs describe --run-id #RUN_ID# | grep -oEm1 's3.*artifacts')/model"
+              mlflow models serve --no-conda -h 0.0.0.0 -p 8080 -m ${model_uri}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow/"
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://mlflow-minio:9000/"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: accesskey
+                  name: mlflow-minio
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: secretkey
+                  name: mlflow-minio
   `)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse deployment template for app")
@@ -577,13 +632,15 @@ spec:
 	defer func() { err = appFile.Close() }()
 
 	err = deploymentTmpl.Execute(appFile, struct {
-		AppName string
-		Route   string
-		Org     string
+		AppName  string
+		Route    string
+		Org      string
+		HasIstio bool
 	}{
-		AppName: name,
-		Route:   route,
-		Org:     c.config.Org,
+		AppName:  name,
+		Route:    route,
+		Org:      c.config.Org,
+		HasIstio: c.kubeClient.HasIstio(),
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to render kube resource definition")
@@ -675,7 +732,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
+		fmt.Sprintf("fluo/app-guid=%s.%s", org, name),
 		600)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
@@ -685,7 +742,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
+		fmt.Sprintf("fluo/app-guid=%s.%s", org, name),
 		300)
 
 	if err != nil {
