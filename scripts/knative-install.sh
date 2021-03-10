@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ $(kubectl get job default-domain -n knative-serving -o jsonpath="{.status.conditions[0].type}") = "Complete" ] ; then
+  echo "knative controller already installed"
+  exit
+fi
+
 export KNATIVE_VERSION=v0.21.0
 
 # Install Knative

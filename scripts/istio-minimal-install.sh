@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if kubectl get svc istiod -n istio-system >/dev/null 2>&1 ; then
+  echo "istio already installed"
+  exit
+fi
+
 export ISTIO_VERSION=1.8.2 # https://knative.dev/docs/install/installing-istio/
 
 curl -L https://git.io/getLatestIstio | sh -
