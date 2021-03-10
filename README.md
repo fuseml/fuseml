@@ -1,24 +1,52 @@
-# carrier
-
-Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
+# FuseML - Flexible Universal Service Orchestration for Machine Learning
 
 ![CI](https://github.com/SUSE/carrier/workflows/CI/badge.svg)
 
-<img src="./docs/carrier.svg" width="50%" height="50%">
+Build your own MLOps orchestration workspace from composable automation recipes adapted to your favourite AI/ML tools.
 
-## Principles
+<img src="./docs/fuseml-logo.png" width="50%" height="50%">
 
-- must fit in less than 4GB of RAM
-- must install in less than 5 minutes when images are warm
-- must install with a one-line command and zero config
-- must completely uninstall and leave the cluster in its previous state with a one-line command
-- must work on local clusters (edge friendly)
+## Overview
 
-### Guidelines
+The machine learning software domain provides an impressive collection of specialized AI/ML software libraries, frameworks and platforms that Data Scientists, Data Engineers and DevOps Engineers can use to coordinate and automate their activities, supporting a wide range of services, from data extraction and exploration, to model training, to inference serving and monitoring. Choosing the right set of tools to suit the needs of your machine learning project isn't an easy task. To make matters worse, the set of tools you eventually decide to use might not be compatible and inter-operable by default, so often there's a lot of additional work that needs to be done to glue them together into a comprehensive MLOps stack and adapt them to the layout of your target infrastructure. What starts as a simple machine learning project eventually ends up being an inflexible DYI MLOps platform accruing a lot of technical debt and locking you into a fixed set of tools.
 
-- if possible, choose components that are written in go
-- all acceptance tests should run in less than 10 minutes
-- all tests should be able to run on the minimal cluster 
+Wouldn't it be great if there was a software solution that could abstract away the time consuming details of fusing together your favourite AI/ML tools, while at the same time being flexible enough to allow you to make changes later on without incurring massive operational costs ? 
+
+FuseML aims to achieve precisely that, by providing all of the following under one umbrella:
+* an MLOps framework that provides the glue required to dynamically integrate together the AI/ML tools of your choice
+* an extensible tool built through collaboration, where Data Engineers and DevOps Engineers can come together and contribute with reusable integration code and use-cases addressing their specific needs and tools, that everyone else can benefit from
+* a set of extensible integration abstractions and conventions defined around common AI/ML concepts and implemented through tool specific plugins and automation recipes. The abstractions are specific enough to support a complex orchestration layer to be implemented on top, but at the same time flexible enough not to hide nor infringe upon the nuances of the various AI/ML tools they are wrapped around
+* an ML orchestrator combining aspects of MLOps and GitOps together into a set of services that Data Scientists, Data Engineers and DevOps Engineers can use to collaboratively manage the end-to-end lifecycle of their AI/ML projects, from code to production, across infrastructure domains, while seamlessly coupling together different AI/ML libraries and tools playing localized roles in a complete MLOps pipeline 
+
+What FuseML does not aim to be:
+* an opinionated open source MLOps platform. Flexibility and extensibility are FuseML's core principles. Instead of being a set of tightly integrated components, it relies on extension mechanisms and custom automation recipes to dynamically and loosely integrate the 3rd party AI/ML tools of your choice 
+* a complete lifecycle manager. FuseML's flexibility does comes with a cost, which is vital to reduce complexity: managing the complete lifecycle (installation and upgrade processes) of supported 3rd party AI/ML tools is out of scope. However, FuseML will provide registration and auto-detection mechanisms for existing 3rd party tool installations, and may even go so far as to add lifecycle management to its list of supported extension mechanisms.
+
+# FuseML Principles
+
+*Flexibility* - create and manage dynamic MLOps workflows connecting different AI/ML tools across multiple infrastructure domains
+
+*Extensibility* - leverage FuseML's set of abstractions and extension mechanisms to add support for your favourite AI/ML tools
+
+*Composability* - build complex MLOps workflows for your projects out of composable building blocks implementing a wide range of machine learning functions     
+
+*Collaboration* - use MLOps automation and tool integration recipes created in collaboration by all AI/ML team roles - Data Scientists, Data Engineers and DevOps Engineers
+
+# Supported 3rd Party Tools
+
+*Experiment Tracking and Versioning*
+* MLFlow
+* DVC (TBD)
+
+*Model Training*
+* DeterminedAI (TBD)
+
+*Model Serving and Monitoring*
+* MLFLow
+* KNative Serving
+* Seldon Core (coming soon)
+* KFServing (coming soon)
+ 
 
 ## Usage
 ### Install
