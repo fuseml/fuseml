@@ -28,7 +28,7 @@ var _ = Describe("MLflow Model", func() {
 			By("pushing the mlflow model")
 			currentDir, err := os.Getwd()
 			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "../mlflow-model")
+			appDir := path.Join(currentDir, "../examples/mlflow-model")
 
 			out, err := Carrier("push --verbosity 1 "+appName, appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
