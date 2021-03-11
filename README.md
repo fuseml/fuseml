@@ -1,12 +1,16 @@
-# FuseML - Flexible Universal Service Orchestration for Machine Learning
+# FuseML - Flexible Universal Service orchestration for Machine Learning
 
 ![CI](https://github.com/SUSE/carrier/workflows/CI/badge.svg)
 
-Build your own MLOps orchestration workspace from composable automation recipes adapted to your favourite AI/ML tools.
+Build your own custom MLOps orchestration workflows from composable automation recipes adapted to your favourite AI/ML tools, to get you from ML code to inference serving in production as easy as lighting a fuse.
 
 <img src="./docs/fuseml-logo.png" width="50%" height="50%">
 
 ## Overview
+
+This project builds a coherent stack of tools, community shared, to run your ML operations. Internally, we are building a flexible framework for consistent operations. It reduces technical debt (created by the Operations stitching tools together) and avoid vendor lock in"
+
+## Why FuseML
 
 The machine learning software domain provides an impressive collection of specialized AI/ML software libraries, frameworks and platforms that Data Scientists, Data Engineers and DevOps Engineers can use to coordinate and automate their activities, supporting a wide range of services, from data extraction and exploration, to model training, to inference serving and monitoring. Choosing the right set of tools to suit the needs of your machine learning project isn't an easy task. To make matters worse, the set of tools you eventually decide to use might not be compatible and inter-operable by default, so often there's a lot of additional work that needs to be done to glue them together into a comprehensive MLOps stack and adapt them to the layout of your target infrastructure. What starts as a simple machine learning project eventually ends up being an inflexible DYI MLOps platform accruing a lot of technical debt and locking you into a fixed set of tools.
 
@@ -31,6 +35,22 @@ What FuseML does not aim to be:
 *Composability* - build complex MLOps workflows for your projects out of composable building blocks implementing a wide range of machine learning functions     
 
 *Collaboration* - use MLOps automation and tool integration recipes created in collaboration by all AI/ML team roles - Data Scientists, Data Engineers and DevOps Engineers
+
+*GitOps for Machine Learning* - traditional DevOps with code, machine learning with other artifacts, ..versioning/tracking/reproducibility. an other byproducts of OPs (packages, container images)
+# Inception and Direction
+
+FuseML originated as a fork from the open source project [Carrier](https://github.com/SUSE/carrier), a lightweight open source PaaS built on top of Kubernetes, then gradually transformed and infused with the MLOps concepts that make it the AI/ML orchestration tool that it is today.
+
+The FuseML team is still in the process of defining the final strategy for the project.
+
+# Basic Workflow
+
+FuseML is currently based solely on a GitOps type of workflow. FuseML's job begins when your machine learning code is ready for execution.
+
+1. write your code using the AI/ML library of your choice (e.g. TensorFlow, PyTorch, SKLearn, XGBoost)
+2. adapt your code to one of the supported experiment tracking tools. FuseML currently only offers support for MLFlow, bur more tools are on the way. For MLFlow, you'll need to use the MLProject format to package your data science code
+3. use the FuseML CLI to push your code to the FuseML orchestrator and, optionally, supply parameters to customize the MLOps workflow that will result in your ML model being served by an inference server
+4. from this point onward, the process is completely automated: FuseML takes care of all aspects that involve building and packaging code, creating container images, running training jobs, storing and converting ML models in the right format and finally serving those models
 
 # Supported 3rd Party Tools
 
