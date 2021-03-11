@@ -10,7 +10,7 @@ import (
 // CreateIstioIngressGateway creates a temporary ingress gateway definition for teh specified service
 func CreateIstioIngressGateway(name string, namespace string, host string, serviceHost string, servicePort int) (string, error) {
 
-	tmpFile, err := ioutil.TempFile("", "fluo")
+	tmpFile, err := ioutil.TempFile("", "fuseml")
 	if err != nil {
 		return tmpFile.Name(), err
 	}

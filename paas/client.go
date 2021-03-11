@@ -517,13 +517,13 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 		return "", errors.Wrap(err, "failed to copy app sources to temp location")
 	}
 
-	err = os.MkdirAll(filepath.Join(tmpDir, ".fluo"), 0700)
+	err = os.MkdirAll(filepath.Join(tmpDir, ".fuseml"), 0700)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
 	dockerfileDef := fmt.Sprintf(`
-FROM ghcr.io/projectfluo/mlflow-runner:1.14.0
+FROM ghcr.io/fuseml/mlflow-runner:1.14.0
 
 COPY conda.yaml /env/
 RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
@@ -538,15 +538,15 @@ RUN conda env create -f /env/conda.yaml
 		return "", errors.Wrap(err, "failed to calculate default app route")
 	}
 
-	dockerFile, err := os.Create(filepath.Join(tmpDir, ".fluo", "Dockerfile"))
+	dockerFile, err := os.Create(filepath.Join(tmpDir, ".fuseml", "Dockerfile"))
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create file for fluo resource definitions")
+		return "", errors.Wrap(err, "failed to create file for FuseML resource definitions")
 	}
 	defer func() { err = dockerFile.Close() }()
 
 	_, err = dockerFile.WriteString(dockerfileDef)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to write fluo Dockerfile definition")
+		return "", errors.Wrap(err, "failed to write FuseML Dockerfile definition")
 	}
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
@@ -556,14 +556,14 @@ kind: Service
 metadata:
   name: "{{ .Org }}-{{ .AppName }}"
   labels:
-    fluo/app-name: "{{ .AppName }}"
-    fluo/org: "{{ .Org }}"
-    fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
+    fuseml/app-name: "{{ .AppName }}"
+    fuseml/org: "{{ .Org }}"
+    fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
 spec:
   template:
     metadata:
       labels:
-        fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
 {{- else }}
 ---
 apiVersion: apps/v1
@@ -583,7 +583,7 @@ spec:
     metadata:
       labels:
         app: "{{ .AppName }}"
-        fluo/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
         # Needed for the ingress extension to work:
         cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
@@ -625,7 +625,7 @@ spec:
 		return "", errors.Wrap(err, "failed to parse deployment template for app")
 	}
 
-	appFile, err := os.Create(filepath.Join(tmpDir, ".fluo", "serve.yaml"))
+	appFile, err := os.Create(filepath.Join(tmpDir, ".fuseml", "serve.yaml"))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create file for kube resource definitions")
 	}
@@ -732,7 +732,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("fluo/app-guid=%s.%s", org, name),
+		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
 		600)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
@@ -742,7 +742,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("fluo/app-guid=%s.%s", org, name),
+		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
 		300)
 
 	if err != nil {
