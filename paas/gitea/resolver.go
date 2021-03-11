@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fuseml/fuseml/cli/deployments"
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	"github.com/fuseml/fuseml/cli/paas/config"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/deployments"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/config"
 	versionedclient "istio.io/client-go/pkg/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

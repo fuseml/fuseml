@@ -1,6 +1,6 @@
 # FuseML - Flexible Universal Service orchestration for Machine Learning
 
-![CI](https://github.com/SUSE/carrier/workflows/CI/badge.svg)
+![CI](https://github.com/fuseml/fuseml/workflows/CI/badge.svg)
 
 Build your own custom MLOps orchestration workflows from composable automation recipes adapted to your favorite AI/ML tools, to get you from ML code to inference serving in production as fast as lighting a fuse.
 

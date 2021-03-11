@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fuseml/fuseml/cli/deployments"
+	"github.com/fuseml/fuseml/cli/helpers"
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	"github.com/fuseml/fuseml/cli/paas/config"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/deployments"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/config"
-	"github.com/suse/carrier/cli/paas/ui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -190,7 +190,7 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 					return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
 						"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
 						"Follow these steps to enable this ability\n" +
-						"https://github.com/SUSE/carrier/blob/main/docs/install.md")
+						"https://github.com/fuseml/fuseml/blob/main/docs/install.md")
 				}
 				return err
 			}

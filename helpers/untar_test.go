@@ -5,9 +5,9 @@ import (
 	"os"
 	"path"
 
+	. "github.com/fuseml/fuseml/cli/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/suse/carrier/cli/helpers"
 )
 
 var _ = Describe("Untar", func() {

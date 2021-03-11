@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/codeskyblue/kexec"
+	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/onsi/ginkgo/config"
-	"github.com/suse/carrier/cli/helpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

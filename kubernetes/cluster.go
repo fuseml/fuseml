@@ -10,12 +10,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	generic "github.com/suse/carrier/cli/kubernetes/platform/generic"
-	ibm "github.com/suse/carrier/cli/kubernetes/platform/ibm"
-	k3s "github.com/suse/carrier/cli/kubernetes/platform/k3s"
-	kind "github.com/suse/carrier/cli/kubernetes/platform/kind"
-	minikube "github.com/suse/carrier/cli/kubernetes/platform/minikube"
-	"github.com/suse/carrier/cli/paas/ui"
+	generic "github.com/fuseml/fuseml/cli/kubernetes/platform/generic"
+	ibm "github.com/fuseml/fuseml/cli/kubernetes/platform/ibm"
+	k3s "github.com/fuseml/fuseml/cli/kubernetes/platform/k3s"
+	kind "github.com/fuseml/fuseml/cli/kubernetes/platform/kind"
+	minikube "github.com/fuseml/fuseml/cli/kubernetes/platform/minikube"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"

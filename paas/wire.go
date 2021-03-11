@@ -3,13 +3,13 @@
 package paas
 
 import (
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	kubeconfig "github.com/fuseml/fuseml/cli/kubernetes/config"
+	"github.com/fuseml/fuseml/cli/paas/config"
+	"github.com/fuseml/fuseml/cli/paas/gitea"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/google/wire"
 	"github.com/spf13/pflag"
-	"github.com/suse/carrier/cli/kubernetes"
-	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
-	"github.com/suse/carrier/cli/paas/config"
-	"github.com/suse/carrier/cli/paas/gitea"
-	"github.com/suse/carrier/cli/paas/ui"
 )
 
 // NewCarrierClient creates the Carrier Client

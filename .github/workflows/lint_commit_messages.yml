@@ -12,7 +12,7 @@ jobs:
       - name: Setup gitlint
         run: sudo apt-get install gitlint
       - name: Checkout
-        run: git clone https://github.com/SUSE/carrier.git && cd carrier && git checkout ${GITHUB_HEAD_REF}
+        run: git clone https://github.com/fuseml/fuseml.git && cd fuseml && git checkout ${GITHUB_HEAD_REF}
       - name: Lint new commits
-        working-directory: ./carrier
+        working-directory: ./fuseml
         run: gitlint --commits "origin..HEAD"
