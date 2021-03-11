@@ -119,7 +119,7 @@ spec:
     - name: IMAGE
       value: $(params.image)
     - NAME: DOCKERFILE
-      value: "app/.fluo/Dockerfile"
+      value: "app/.fuseml/Dockerfile"
     - name: CONTEXT
       value: app
     - name: EXTRA_ARGS
@@ -237,4 +237,4 @@ spec:
     image: lachlanevenson/k8s-kubectl
     workingDir: "/workspace/source/app"
     script: |
-      sed "s/#RUN_ID#/$(params.RUN-ID)/g; s/#IMAGE_SHA#/$(params.IMAGE-SHA)/g" .fluo/serve.yaml | kubectl apply -f -
+      sed "s/#RUN_ID#/$(params.RUN-ID)/g; s/#IMAGE_SHA#/$(params.IMAGE-SHA)/g" .fuseml/serve.yaml | kubectl apply -f -
