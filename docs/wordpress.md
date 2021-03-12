@@ -1,4 +1,4 @@
-# Installing Wordpress with Carrier
+# Installing Wordpress with Fuseml
 
 ## Create a directory for your application:
 
@@ -49,7 +49,7 @@ EOF
 ## Deploy
 
 ```
-carrier push wordpress
+fuseml push wordpress
 ```
 
 ## Additional steps

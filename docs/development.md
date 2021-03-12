@@ -9,7 +9,7 @@ https://www.conventionalcommits.org/en/v1.0.0/#summary
 
 We use [gitlint](https://jorisroovers.com/gitlint/) to lint all new commits.
 
-The hook can be setup by running the following command inside of the `carrier` git directory:
+The hook can be setup by running the following command inside of the `fuseml` git directory:
 
 ```bash
 gitlint install-hook

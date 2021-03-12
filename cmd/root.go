@@ -29,9 +29,9 @@ func Execute() {
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	rootCmd := &cobra.Command{
-		Use:           "carrier",
-		Short:         "Carrier cli",
-		Long:          `carrier cli is the official command line interface for Carrier PaaS `,
+		Use:           "fuseml",
+		Short:         "Fuseml cli",
+		Long:          `fuseml cli is the official command line interface for Fuseml PaaS `,
 		Version:       fmt.Sprintf("%s", Version),
 		SilenceErrors: true,
 	}
@@ -42,7 +42,7 @@ func Execute() {
 	pf.StringVarP(&flagConfigFile, "config-file", "", pconfig.DefaultLocation(),
 		"set path of configuration file")
 	viper.BindPFlag("config-file", pf.Lookup("config-file"))
-	argToEnv["config-file"] = "CARRIER_CONFIG"
+	argToEnv["config-file"] = "FUSEML_CONFIG"
 
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)

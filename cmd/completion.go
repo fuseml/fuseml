@@ -14,13 +14,13 @@ var CmdCompletion = &cobra.Command{
 
 Bash:
 
-$ source <(carrier completion bash)
+$ source <(fuseml completion bash)
 
 # To load completions for each session, execute once:
 Linux:
-  $ carrier completion bash > /etc/bash_completion.d/carrier
+  $ fuseml completion bash > /etc/bash_completion.d/fuseml
 MacOS:
-  $ carrier completion bash > /usr/local/etc/bash_completion.d/carrier
+  $ fuseml completion bash > /usr/local/etc/bash_completion.d/fuseml
 
 ATTENTION:
     The generated script requires the bash-completion package.
@@ -35,23 +35,23 @@ Zsh:
 $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
 # To load completions for each session, execute once:
-$ carrier completion zsh > "${fpath[1]}/_carrier"
+$ fuseml completion zsh > "${fpath[1]}/_fuseml"
 
 # You will need to start a new shell for this setup to take effect.
 
 Fish:
 
-$ carrier completion fish | source
+$ fuseml completion fish | source
 
 # To load completions for each session, execute once:
-$ carrier completion fish > ~/.config/fish/completions/carrier.fish
+$ fuseml completion fish > ~/.config/fish/completions/fuseml.fish
 
 Powershell:
 
-PS> carrier completion powershell | Out-String | Invoke-Expression
+PS> fuseml completion powershell | Out-String | Invoke-Expression
 
 # To load completions for every new session, run:
-PS> carrier completion powershell > carrier.ps1
+PS> fuseml completion powershell > fuseml.ps1
 # and source this file from your powershell profile.
 `,
 	DisableFlagsInUseLine: true,

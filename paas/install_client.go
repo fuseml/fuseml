@@ -24,7 +24,7 @@ const (
 )
 
 // InstallClient provides functionality for talking to Kubernetes for
-// installing Carrier on it.
+// installing Fuseml on it.
 type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	ui         *ui.UI
@@ -32,14 +32,14 @@ type InstallClient struct {
 	Log        logr.Logger
 }
 
-// Install deploys carrier to the cluster.
+// Install deploys fuseml to the cluster.
 func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
 	log := c.Log.WithName("Install")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Carrier installing...")
+	c.ui.Note().Msg("FuseML installing...")
 
 	var err error
 	details.Info("process cli options")
@@ -117,19 +117,19 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		}
 	}
 
-	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Carrier installed.")
+	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("FuseML installed.")
 
 	return nil
 }
 
-// Uninstall removes carrier from the cluster.
+// Uninstall removes fuseml from the cluster.
 func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	log := c.Log.WithName("Uninstall")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Carrier uninstalling...")
+	c.ui.Note().Msg("FuseML uninstalling...")
 
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
@@ -146,7 +146,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		}
 	}
 
-	c.ui.Success().Msg("Carrier uninstalled.")
+	c.ui.Success().Msg("FuseML uninstalled.")
 
 	return nil
 }

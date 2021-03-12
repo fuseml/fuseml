@@ -21,7 +21,7 @@ type Registry struct {
 }
 
 const (
-	RegistryDeploymentID = "carrier-registry"
+	RegistryDeploymentID = "fuseml-registry"
 	registryVersion      = "0.1.0"
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
@@ -51,7 +51,7 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", RegistryDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Registry because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Registry because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -116,7 +116,7 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return errors.New("Failed installing Registry: " + out)
 	}
 
-	err = c.LabelNamespace(RegistryDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(RegistryDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

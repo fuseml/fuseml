@@ -12,10 +12,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// NewCarrierClient creates the Carrier Client
-func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+// NewFusemlClient creates the Fuseml Client
+func NewFusemlClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*FusemlClient, func(), error) {
 	wire.Build(
-		wire.Struct(new(CarrierClient), "*"),
+		wire.Struct(new(FusemlClient), "*"),
 		config.Load,
 		ui.NewUI,
 		gitea.NewGiteaClient,
@@ -25,10 +25,10 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		kubeconfig.NewClientLogger,
 	)
 
-	return &CarrierClient{}, func() {}, nil
+	return &FusemlClient{}, func() {}, nil
 }
 
-// NewInstallClient creates the Carrier Client for installation
+// NewInstallClient creates the Fuseml Client for installation
 func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*InstallClient, func(), error) {
 	wire.Build(
 		wire.Struct(new(InstallClient), "*"),

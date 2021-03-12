@@ -8,13 +8,13 @@ import (
 
 var ()
 
-// CmdApps implements the carrier app command
+// CmdApps implements the fuseml app command
 var CmdApps = &cobra.Command{
 	Use:   "apps",
 	Short: "Lists all applications",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

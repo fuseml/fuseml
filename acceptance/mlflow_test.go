@@ -13,9 +13,9 @@ import (
 var _ = Describe("MLflow Model", func() {
 	var org = "mlflow-org"
 	BeforeEach(func() {
-		out, err := Carrier("create-org "+org, "")
+		out, err := Fuseml("create-org "+org, "")
 		Expect(err).ToNot(HaveOccurred(), out)
-		out, err = Carrier("target "+org, "")
+		out, err = Fuseml("target "+org, "")
 		Expect(err).ToNot(HaveOccurred(), out)
 	})
 	Describe("push and delete", func() {
@@ -30,9 +30,9 @@ var _ = Describe("MLflow Model", func() {
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../examples/mlflow-model")
 
-			out, err := Carrier("push --verbosity 1 "+appName, appDir)
+			out, err := Fuseml("push --verbosity 1 "+appName, appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
-			out, err = Carrier("apps", "")
+			out, err = Fuseml("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			routeRegex := `.*\|.*1\/1.*\|.*`
 			if withKnative {
@@ -41,11 +41,11 @@ var _ = Describe("MLflow Model", func() {
 			Expect(out).To(MatchRegexp(appName + routeRegex))
 
 			By("deleting the mlflow model")
-			out, err = Carrier("delete "+appName, "")
+			out, err = Fuseml("delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			// TODO: Fix `carrier delete` from returning before the app is deleted #131
+			// TODO: Fix `fuseml delete` from returning before the app is deleted #131
 			Eventually(func() string {
-				out, err := Carrier("apps", "")
+				out, err := Fuseml("apps", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))

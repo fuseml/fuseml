@@ -31,14 +31,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '^1.13.7'
-      - name: Build Carrier
+      - name: Build FuseML
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make build-all-small
       - name: Create CHECKSUMS
         if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: ( cd dist ; sha256sum -b carrier* > SHA256SUM.txt )
-      - name: Release Carrier
+        run: ( cd dist ; sha256sum -b fuseml* > SHA256SUM.txt )
+      - name: Release FuseML
         uses: softprops/action-gh-release@v1
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         with:

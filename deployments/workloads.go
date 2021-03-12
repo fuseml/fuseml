@@ -20,7 +20,7 @@ type Workloads struct {
 }
 
 const (
-	WorkloadsDeploymentID   = "carrier-workloads"
+	WorkloadsDeploymentID   = "fuseml-workloads"
 	WorkloadsIngressVersion = "0.1"
 	appIngressYamlPath      = "app-ingress.yaml"
 )
@@ -50,7 +50,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", WorkloadsDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Workspace because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Workspace because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -63,7 +63,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace 'app-ingress' is owned or not")
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping app-ingress namespace deletion because either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping app-ingress namespace deletion because either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -86,7 +86,7 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 			return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", appIngressYamlPath, out))
 		}
 
-		if err := c.LabelNamespace("app-ingress", kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
+		if err := c.LabelNamespace("app-ingress", kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue); err != nil {
 			return err
 		}
 
@@ -101,7 +101,7 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 }
 
 func (k Workloads) GetVersion() string {
-	// TODO: Maybe this should be the Carrier version itself?
+	// TODO: Maybe this should be the Fuseml version itself?
 	return WorkloadsIngressVersion
 }
 
@@ -138,8 +138,8 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 			ObjectMeta: metav1.ObjectMeta{
 				Name: WorkloadsDeploymentID,
 				Labels: map[string]string{
-					"quarks.cloudfoundry.org/monitored":  "quarks-secret",
-					kubernetes.CarrierDeploymentLabelKey: kubernetes.CarrierDeploymentLabelValue,
+					"quarks.cloudfoundry.org/monitored": "quarks-secret",
+					kubernetes.FusemlDeploymentLabelKey: kubernetes.FusemlDeploymentLabelValue,
 				},
 			},
 		},
@@ -148,7 +148,7 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 		return nil
 	}
 
-	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
+	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue); err != nil {
 		return err
 	}
 	if err := w.createGiteaCredsSecret(c); err != nil {
@@ -211,8 +211,8 @@ func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error
 	auths := `{ "auths": {
 		"https://127.0.0.1:30500":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
 		"http://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
-		 "registry.carrier-registry":{"username":"admin","password":"password"},
-		 "registry.carrier-registry:444":{"username":"admin","password":"password"} } }`
+		 "registry.fuseml-registry":{"username":"admin","password":"password"},
+		 "registry.fuseml-registry:444":{"username":"admin","password":"password"} } }`
 
 	_, err := c.Kubectl.CoreV1().Secrets(WorkloadsDeploymentID).Create(context.Background(),
 		&corev1.Secret{

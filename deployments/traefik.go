@@ -50,7 +50,7 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", TraefikDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Traefik because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Traefik because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
 	}
 
-	err = c.LabelNamespace(TraefikDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(TraefikDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

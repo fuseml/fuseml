@@ -8,12 +8,12 @@ import (
 
 var ()
 
-// CmdOrgs implements the carrier orgs command
+// CmdOrgs implements the fuseml orgs command
 var CmdOrgs = &cobra.Command{
 	Use:   "orgs",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

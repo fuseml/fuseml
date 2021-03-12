@@ -15,7 +15,7 @@ var _ = Describe("Untar", func() {
 	var err error
 
 	BeforeEach(func() {
-		targetDirectory, err = ioutil.TempDir("", "carrier-test")
+		targetDirectory, err = ioutil.TempDir("", "fuseml-test")
 		Expect(err).ToNot(HaveOccurred())
 		tarFile = FixturePath("untar.tgz")
 	})

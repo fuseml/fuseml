@@ -16,7 +16,7 @@ var _ = Describe("DownloadFile", func() {
 	var url string
 
 	BeforeEach(func() {
-		directory, err := ioutil.TempDir("", "carrier-test")
+		directory, err := ioutil.TempDir("", "fuseml-test")
 		defer os.Remove(directory)
 
 		file, err := os.Create(path.Join(directory, "thefile"))
@@ -32,7 +32,7 @@ var _ = Describe("DownloadFile", func() {
 	})
 
 	It("downloads a url with filename under directory", func() {
-		targetDirectory, err := ioutil.TempDir("", "carrier-test")
+		targetDirectory, err := ioutil.TempDir("", "fuseml-test")
 		defer os.Remove(targetDirectory)
 
 		err = DownloadFile(url, "downloadedFile", targetDirectory)

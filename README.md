@@ -84,14 +84,14 @@ The basic FuseML workflow can be described as a GitOps type of workflow that sta
 
 ```bash
 
-$ carrier install
+$ fuseml install
 
 ```
 ### Uninstall
 
 ```bash
 
-$ carrier uninstall
+$ fuseml uninstall
 
 ```
 
@@ -101,7 +101,7 @@ Run the following command for any supported application directory (e.g. one of t
 
 ```bash
 
-$ carrier push NAME PATH_TO_APPLICATION_SOURCES
+$ fuseml push NAME PATH_TO_APPLICATION_SOURCES
 
 ```
 
@@ -113,7 +113,7 @@ Always ensure that the chosen directory contains a supported application.
 
 ```bash
 
-$ carrier delete NAME
+$ fuseml delete NAME
 
 ```
 
@@ -121,7 +121,7 @@ $ carrier delete NAME
 
 ```bash
 
-$ carrier create-org NAME
+$ fuseml create-org NAME
 
 ```
 
@@ -129,7 +129,7 @@ $ carrier create-org NAME
 
 ```bash
 
-$ carrier target NAME
+$ fuseml target NAME
 
 ```
 
@@ -137,7 +137,7 @@ $ carrier target NAME
 
 ```bash
 
-$ carrier help
+$ fuseml help
 
 ```
 
@@ -145,16 +145,16 @@ $ carrier help
 
 ```bash
 
-$ carrier COMMAND --help
+$ fuseml COMMAND --help
 
 ```
 
 ## Configuration
 
-Carrier places its configuration at `$HOME/.config/carrier/config.yaml` by default.
+FuseML places its configuration at `$HOME/.config/fuseml/config.yaml` by default.
 
 For exceptional situations, this can be overridden by either specifying
 
 * The global command-line option `--config-file`, or
 
-* The environment variable `CARRIER_CONFIG`.
+* The environment variable `FUSEML_CONFIG`.

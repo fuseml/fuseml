@@ -50,7 +50,7 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", QuarksDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -123,7 +123,7 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
 	}
 
-	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

@@ -8,13 +8,13 @@ import (
 
 var ()
 
-// CmdInfo implements the carrier info command
+// CmdInfo implements the fuseml info command
 var CmdInfo = &cobra.Command{
 	Use:   "info",
-	Short: "Shows information about the Carrier environment",
+	Short: "Shows information about the Fuseml environment",
 	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -27,7 +27,7 @@ var CmdInfo = &cobra.Command{
 
 		err = client.Info()
 		if err != nil {
-			return errors.Wrap(err, "error retrieving Carrier environment information")
+			return errors.Wrap(err, "error retrieving Fuseml environment information")
 		}
 
 		return nil
