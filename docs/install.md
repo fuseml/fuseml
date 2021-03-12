@@ -9,7 +9,7 @@
 
 ## Provision of External IP for LoadBalancer service type in Kubernetes
 
-Local kubernetes platforms do not have the ability to provide external IP address when you create a kubernetes service with `LoadBalancer` service type. The following steps will enable this ability for different local kubernetes platforms. Follow these steps before installing carrier.
+Local kubernetes platforms do not have the ability to provide external IP address when you create a kubernetes service with `LoadBalancer` service type. The following steps will enable this ability for different local kubernetes platforms. Follow these steps before installing fuseml.
 
 ### K3s/K3d
 

@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCarrier(t *testing.T) {
+func TestFuseml(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Carrier Suite")
+	RunSpecs(t, "Fuseml Suite")
 }

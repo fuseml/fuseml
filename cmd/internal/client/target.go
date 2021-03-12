@@ -8,13 +8,13 @@ import (
 
 var ()
 
-// CmdTarget implements the carrier target command
+// CmdTarget implements the fuseml target command
 var CmdTarget = &cobra.Command{
 	Use:   "target [org]",
-	Short: "Targets an organization in Carrier.",
+	Short: "Targets an organization in Fuseml.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -43,7 +43,7 @@ var CmdTarget = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags(), nil)
+		app, cleanup, _ := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

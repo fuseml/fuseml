@@ -21,7 +21,7 @@ type MLflow struct {
 
 const (
 	MLflowDeploymentID = "mlflow"
-	mlflowNamespace    = "carrier-workloads"
+	mlflowNamespace    = "fuseml-workloads"
 	mlflowVersion      = "0.0.1"
 	mlflowChartFile    = "mlflow-0.0.1.tgz"
 )
@@ -51,7 +51,7 @@ func (k MLflow) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", mlflowNamespace)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping MLflow because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping MLflow because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -171,7 +171,7 @@ minio:
 		return errors.New("Failed installing MLflow: " + out)
 	}
 
-	err = c.LabelNamespace(mlflowNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(mlflowNamespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

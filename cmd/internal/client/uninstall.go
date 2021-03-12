@@ -8,15 +8,15 @@ import (
 
 var CmdUninstall = &cobra.Command{
 	Use:           "uninstall",
-	Short:         "uninstall Carrier from your configured kubernetes cluster",
-	Long:          `uninstall Carrier PaaS from your configured kubernetes cluster`,
+	Short:         "uninstall Fuseml from your configured kubernetes cluster",
+	Long:          `uninstall Fuseml PaaS from your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Uninstall,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
 
-// Uninstall command removes carrier from a configured cluster
+// Uninstall command removes fuseml from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
 	installClient, _, err := paas.NewInstallClient(cmd.Flags(), nil)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 var NeededOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "system_domain",
-		Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
+		Description: "The domain you are planning to use for Fuseml. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",
@@ -23,8 +23,8 @@ const (
 
 var CmdInstall = &cobra.Command{
 	Use:           "install",
-	Short:         "install Carrier in your configured kubernetes cluster",
-	Long:          `install Carrier PaaS in your configured kubernetes cluster`,
+	Short:         "install Fuseml in your configured kubernetes cluster",
+	Long:          `install Fuseml PaaS in your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Install,
 	SilenceErrors: true,
@@ -37,7 +37,7 @@ func init() {
 	NeededOptions.AsCobraFlagsFor(CmdInstall)
 }
 
-// Install command installs carrier on a configured cluster
+// Install command installs fuseml on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
 	install_client, install_cleanup, err := paas.NewInstallClient(cmd.Flags(), nil)
 	defer func() {
@@ -52,15 +52,15 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	err = install_client.Install(cmd, &NeededOptions)
 	if err != nil {
-		return errors.Wrap(err, "error installing Carrier")
+		return errors.Wrap(err, "error installing Fuseml")
 	}
 
 	// Installation complete. Run `create-org`
 
-	carrier_client, carrier_cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+	fuseml_client, fuseml_cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 	defer func() {
-		if carrier_cleanup != nil {
-			carrier_cleanup()
+		if fuseml_cleanup != nil {
+			fuseml_cleanup()
 		}
 	}()
 
@@ -72,18 +72,18 @@ func Install(cmd *cobra.Command, args []string) error {
 	// - Create and target a default organization, so that the
 	//   user can immediately begin to push applications.
 	//
-	// Dev Note: The targeting is done to ensure that a carrier
+	// Dev Note: The targeting is done to ensure that a fuseml
 	// config left over from a previous installation will contain
 	// a valid organization. Without it may contain the name of a
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = carrier_client.CreateOrg(DefaultOrganization)
+	err = fuseml_client.CreateOrg(DefaultOrganization)
 	if err != nil {
 		return errors.Wrap(err, "error creating org")
 	}
 
-	err = carrier_client.Target(DefaultOrganization)
+	err = fuseml_client.Target(DefaultOrganization)
 	if err != nil {
 		return errors.Wrap(err, "failed to set target")
 	}

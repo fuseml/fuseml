@@ -16,7 +16,7 @@ import (
 
 // Injectors from wire.go:
 
-func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+func NewFusemlClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*FusemlClient, func(), error) {
 	configConfig, err := config.Load(flags)
 	if err != nil {
 		return nil, nil, err
@@ -36,7 +36,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 	}
 	uiUI := ui.NewUI()
 	logger := config2.NewClientLogger()
-	carrierClient := &CarrierClient{
+	fusemlClient := &FusemlClient{
 		giteaClient:   client,
 		kubeClient:    cluster,
 		ui:            uiUI,
@@ -44,7 +44,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		giteaResolver: resolver,
 		Log:           logger,
 	}
-	return carrierClient, func() {
+	return fusemlClient, func() {
 	}, nil
 }
 

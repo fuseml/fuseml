@@ -34,13 +34,13 @@ import (
 )
 
 const (
-	// APISGroupName is the api name used for carrier
-	APISGroupName = "carrier.suse.org"
+	// APISGroupName is the api name used for fuseml
+	APISGroupName = "fuse.ml"
 )
 
 var (
-	CarrierDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
-	CarrierDeploymentLabelValue = "true"
+	FusemlDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
+	FusemlDeploymentLabelValue = "true"
 )
 
 type Platform interface {
@@ -406,7 +406,7 @@ func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
 }
 
 // NamespaceExistsAndOwned checks if the namespace exists
-// and is created by carrier or not.
+// and is created by fuseml or not.
 func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 	exists, err := c.NamespaceExists(namespaceName)
 	if err != nil {
@@ -416,7 +416,7 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 		return false, nil
 	}
 
-	owned, err := c.NamespaceLabelExists(namespaceName, CarrierDeploymentLabelKey)
+	owned, err := c.NamespaceLabelExists(namespaceName, FusemlDeploymentLabelKey)
 	if err != nil {
 		return false, err
 	}

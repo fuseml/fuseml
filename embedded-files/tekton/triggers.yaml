@@ -3,7 +3,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
   name: mlflow-triggertemplate
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   params:
     - name: gitrevision
@@ -24,7 +24,7 @@ spec:
         serviceAccountName: staging-triggers-admin
         serviceAccountNames:
         - taskName: train
-          serviceAccountName: carrier-workloads
+          serviceAccountName: fuseml-workloads
         pipelineRef:
           name: mlflow-pipeline
         workspaces:
@@ -38,7 +38,7 @@ spec:
                   storage: 2Gi
         params:
         - name: image
-          value: registry.carrier-registry/apps/$(tt.params.appname)
+          value: registry.fuseml-registry/apps/$(tt.params.appname)
         - name: appname
           value: $(tt.params.appname)
         resources:
@@ -56,13 +56,13 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
 metadata:
   name: mlflow-pipelinebinding
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   params:
     - name: gitrevision
       value: $(body.head_commit.id)
     - name: namespace
-      value: carrier-workloads
+      value: fuseml-workloads
     - name: gitrepositoryurl
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
@@ -73,7 +73,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
 metadata:
   name: mlflow-listener
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   serviceAccountName: staging-triggers-admin
   triggers:
@@ -87,7 +87,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: mlflow-pipeline
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   workspaces:
   - name: source
@@ -159,7 +159,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: clone
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   workspaces:
   - name: source
@@ -181,7 +181,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: train
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   params:
   - name: IMAGE
@@ -225,7 +225,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: serve
-  namespace: carrier-workloads
+  namespace: fuseml-workloads
 spec:
   params:
   - name: IMAGE-SHA

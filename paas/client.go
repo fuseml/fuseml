@@ -36,12 +36,12 @@ var (
 
 	// StagingEventListenerURL should not exist
 	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-mlflow-listener.carrier-workloads:8080"
+	StagingEventListenerURL = "http://el-mlflow-listener.fuseml-workloads:8080"
 )
 
-// CarrierClient provides functionality for talking to a
-// Carrier installation on Kubernetes
-type CarrierClient struct {
+// FusemlClient provides functionality for talking to a
+// Fuseml installation on Kubernetes
+type FusemlClient struct {
 	giteaClient   *gitea.Client
 	kubeClient    *kubernetes.Cluster
 	ui            *ui.UI
@@ -51,7 +51,7 @@ type CarrierClient struct {
 }
 
 // Info displays information about environment
-func (c *CarrierClient) Info() error {
+func (c *FusemlClient) Info() error {
 	log := c.Log.WithName("Info")
 	log.Info("start")
 	defer log.Info("return")
@@ -73,14 +73,14 @@ func (c *CarrierClient) Info() error {
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
-		Msg("Carrier Environment")
+		Msg("Fuseml Environment")
 
 	return nil
 }
 
-// AppsMatching returns all Carrier apps having the specified prefix
+// AppsMatching returns all Fuseml apps having the specified prefix
 // in their name.
-func (c *CarrierClient) AppsMatching(prefix string) []string {
+func (c *FusemlClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -105,8 +105,8 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	return result
 }
 
-// Apps gets all Carrier apps
-func (c *CarrierClient) Apps() error {
+// Apps gets all Fuseml apps
+func (c *FusemlClient) Apps() error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -133,8 +133,8 @@ func (c *CarrierClient) Apps() error {
 	for _, app := range apps {
 		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.DeploymentStatus(
-			c.config.CarrierWorkloadsNamespace,
-			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
+			c.config.FusemlWorkloadsNamespace,
+			fmt.Sprintf("fuseml/app-guid=%s.%s", c.config.Org, app.Name),
 		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
@@ -149,7 +149,7 @@ func (c *CarrierClient) Apps() error {
 				return errors.Wrap(err, "failed to create knative client.")
 			}
 
-			knService, err := knc.ServingV1().Services(c.config.CarrierWorkloadsNamespace).
+			knService, err := knc.ServingV1().Services(c.config.FusemlWorkloadsNamespace).
 				Get(context.TODO(), fmt.Sprintf("%s-%s", c.config.Org, app.Name), metav1.GetOptions{})
 			if err != nil {
 				return errors.Wrap(err, "failed to get knative service")
@@ -158,7 +158,7 @@ func (c *CarrierClient) Apps() error {
 		} else {
 			details.Info("kube get ingress", "App", app.Name)
 			ingRoutes, err := c.kubeClient.ListIngressRoutes(
-				c.config.CarrierWorkloadsNamespace,
+				c.config.FusemlWorkloadsNamespace,
 				app.Name)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
@@ -168,13 +168,13 @@ func (c *CarrierClient) Apps() error {
 		msg = msg.WithTableRow(app.Name, status, routes)
 	}
 
-	msg.Msg("Carrier Applications:")
+	msg.Msg("Fuseml Applications:")
 
 	return nil
 }
 
 // CreateOrg creates an Org in gitea
-func (c *CarrierClient) CreateOrg(org string) error {
+func (c *FusemlClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
@@ -211,7 +211,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 }
 
 // Delete deletes an app
-func (c *CarrierClient) Delete(app string) error {
+func (c *FusemlClient) Delete(app string) error {
 	log := c.Log.WithName("Delete").WithValues("Application", app)
 	log.Info("start")
 	defer log.Info("return")
@@ -237,7 +237,7 @@ func (c *CarrierClient) Delete(app string) error {
 			return errors.Wrap(err, "failed to create knative client.")
 		}
 
-		err = knc.ServingV1().Services(c.config.CarrierWorkloadsNamespace).
+		err = knc.ServingV1().Services(c.config.FusemlWorkloadsNamespace).
 			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to knative service")
@@ -246,7 +246,7 @@ func (c *CarrierClient) Delete(app string) error {
 
 		details.Info("delete deployment")
 
-		err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).
+		err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.FusemlWorkloadsNamespace).
 			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to delete application deployment")
@@ -259,9 +259,9 @@ func (c *CarrierClient) Delete(app string) error {
 	return nil
 }
 
-// OrgsMatching returns all Carrier orgs having the specified prefix
+// OrgsMatching returns all Fuseml orgs having the specified prefix
 // in their name
-func (c *CarrierClient) OrgsMatching(prefix string) []string {
+func (c *FusemlClient) OrgsMatching(prefix string) []string {
 	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -287,7 +287,7 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 }
 
 // Orgs get a list of all orgs in gitea
-func (c *CarrierClient) Orgs() error {
+func (c *FusemlClient) Orgs() error {
 	log := c.Log.WithName("Orgs")
 	log.Info("start")
 	defer log.Info("return")
@@ -307,13 +307,13 @@ func (c *CarrierClient) Orgs() error {
 		msg = msg.WithTableRow(org.UserName)
 	}
 
-	msg.Msg("Carrier Organizations:")
+	msg.Msg("Fuseml Organizations:")
 
 	return nil
 }
 
 // Push pushes an app
-func (c *CarrierClient) Push(app string, path string) error {
+func (c *FusemlClient) Push(app string, path string) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -392,7 +392,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 }
 
 // Target targets an org in gitea
-func (c *CarrierClient) Target(org string) error {
+func (c *FusemlClient) Target(org string) error {
 	log := c.Log.WithName("Target").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
@@ -428,11 +428,11 @@ func (c *CarrierClient) Target(org string) error {
 	return nil
 }
 
-func (c *CarrierClient) check() {
+func (c *FusemlClient) check() {
 	c.giteaClient.GetMyUserInfo()
 }
 
-func (c *CarrierClient) createRepo(name string) error {
+func (c *FusemlClient) createRepo(name string) error {
 	_, resp, err := c.giteaClient.GetRepo(c.config.Org, name)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get repo request")
@@ -459,7 +459,7 @@ func (c *CarrierClient) createRepo(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) createRepoWebhook(name string) error {
+func (c *FusemlClient) createRepoWebhook(name string) error {
 	hooks, _, err := c.giteaClient.ListRepoHooks(c.config.Org, name, gitea.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
@@ -490,24 +490,24 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
+func (c *FusemlClient) appDefaultRoute(name string) (string, error) {
 	domain, err := c.giteaResolver.GetMainDomain()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to determine carrier domain")
+		return "", errors.Wrap(err, "failed to determine fuseml domain")
 	}
 	route := fmt.Sprintf("%s.%s", name, domain)
 
 	if c.kubeClient.HasIstio() {
-		route = fmt.Sprintf("%s-%s.%s.%s", c.config.Org, name, c.config.CarrierWorkloadsNamespace, domain)
+		route = fmt.Sprintf("%s-%s.%s.%s", c.config.Org, name, c.config.FusemlWorkloadsNamespace, domain)
 	}
 
 	return route, nil
 }
 
-func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
+func (c *FusemlClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
-	tmpDir, err = ioutil.TempDir("", "carrier-app")
+	tmpDir, err = ioutil.TempDir("", "fuseml-app")
 	if err != nil {
 		return "", errors.Wrap(err, "can't create temp directory")
 	}
@@ -571,9 +571,9 @@ kind: Deployment
 metadata:
   name: "{{ .Org }}-{{ .AppName }}"
   labels:
-    carrier/app-guid:  "{{ .Org }}.{{ .AppName }}"
-    carrier/app-name: "{{ .AppName }}"
-    carrier/org: "{{ .Org }}"
+    fuseml/app-guid:  "{{ .Org }}.{{ .AppName }}"
+    fuseml/app-name: "{{ .AppName }}"
+    fuseml/org: "{{ .Org }}"
 spec:
   replicas: 1
   selector:
@@ -649,7 +649,7 @@ spec:
 	return
 }
 
-func (c *CarrierClient) gitPush(name, tmpDir string) error {
+func (c *FusemlClient) gitPush(name, tmpDir string) error {
 	c.ui.Normal().Msg("Pushing application code ...")
 
 	giteaURL, err := c.giteaResolver.GetGiteaURL()
@@ -673,14 +673,14 @@ func (c *CarrierClient) gitPush(name, tmpDir string) error {
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s" 
 git init
-git config user.name "Carrier"
-git config user.email ci@carrier
-git remote add carrier "%s"
+git config user.name "Fuseml"
+git config user.email ci@fuseml
+git remote add fuseml "%s"
 git fetch --all
-git reset --soft carrier/main
+git reset --soft fuseml/main
 git add --all
 git commit --no-gpg-sign -m "pushed at %s"
-git push carrier master:main
+git push fuseml master:main
 `, tmpDir, u.String(), time.Now().Format("20060102150405")))
 
 	output, err := cmd.CombinedOutput()
@@ -698,7 +698,7 @@ git push carrier master:main
 	return nil
 }
 
-func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
+func (c *FusemlClient) logs(name string) (context.CancelFunc, error) {
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -718,7 +718,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
-		Namespace: "carrier-workloads",
+		Namespace: "fuseml-workloads",
 		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
@@ -728,10 +728,10 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	return cancelFunc, nil
 }
 
-func (c *CarrierClient) waitForApp(org, name string) error {
+func (c *FusemlClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
-		c.ui, c.config.CarrierWorkloadsNamespace,
+		c.ui, c.config.FusemlWorkloadsNamespace,
 		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
 		600)
 	if err != nil {
@@ -741,7 +741,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
-		c.ui, c.config.CarrierWorkloadsNamespace,
+		c.ui, c.config.FusemlWorkloadsNamespace,
 		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
 		300)
 
@@ -752,7 +752,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	return nil
 }
 
-func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
+func (c *FusemlClient) ensureGoodOrg(org, msg string) error {
 	_, resp, err := c.giteaClient.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")

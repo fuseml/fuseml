@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/carrier/config.yaml")
+	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/fuseml/config.yaml")
 )
 
-// Config represents a carrier config
+// Config represents a fuseml config
 type Config struct {
-	GiteaProtocol             string `mapstructure:"gitea_protocol"`
-	CarrierWorkloadsNamespace string `mapstructure:"carrier_workloads_namespace"`
-	Org                       string `mapstructure:"org"`
+	GiteaProtocol            string `mapstructure:"gitea_protocol"`
+	FusemlWorkloadsNamespace string `mapstructure:"fuseml_workloads_namespace"`
+	Org                      string `mapstructure:"org"`
 
 	v *viper.Viper
 }
@@ -28,19 +28,19 @@ func DefaultLocation() string {
 	return defaultConfigFilePath
 }
 
-// Load loads the Carrier config
+// Load loads the Fuseml config
 func Load(flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
 	file := location()
 
 	v.SetConfigType("yaml")
 	v.SetConfigFile(file)
-	v.SetEnvPrefix("CARRIER")
+	v.SetEnvPrefix("FUSEML")
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	v.SetDefault("gitea_namespace", "gitea")
 	v.SetDefault("gitea_protocol", "http")
-	v.SetDefault("carrier_workloads_namespace", "carrier-workloads")
+	v.SetDefault("fuseml_workloads_namespace", "fuseml-workloads")
 	v.SetDefault("org", "workspace")
 
 	configExists, err := fileExists(file)
@@ -66,7 +66,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	return cfg, nil
 }
 
-// Save saves the Carrier config
+// Save saves the Fuseml config
 func (c *Config) Save() error {
 	c.v.Set("org", c.Org)
 

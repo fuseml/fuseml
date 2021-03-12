@@ -8,13 +8,13 @@ import (
 
 var ()
 
-// CmdDeleteApp implements the carrier delete command
+// CmdDeleteApp implements the fuseml delete command
 var CmdDeleteApp = &cobra.Command{
 	Use:   "delete NAME",
 	Short: "Deletes an application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -38,7 +38,7 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags(), nil)
+		app, cleanup, _ := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

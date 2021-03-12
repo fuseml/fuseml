@@ -10,13 +10,13 @@ import (
 
 var ()
 
-// CmdPush implements the carrier orgs command
+// CmdPush implements the fuseml orgs command
 var CmdPush = &cobra.Command{
 	Use:   "push NAME [PATH_TO_APPLICATION_SOURCES]",
 	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

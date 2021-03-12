@@ -31,7 +31,7 @@ func NewResolver(config *config.Config, cluster *kubernetes.Cluster) *Resolver {
 	}
 }
 
-// GetMainDomain finds the main domain for Carrier
+// GetMainDomain finds the main domain for Fuseml
 func (r *Resolver) GetMainDomain() (string, error) {
 	var host string
 	var err error
@@ -64,7 +64,7 @@ func (r *Resolver) GetGiteaURL() (string, error) {
 
 // GetGiteaCredentials resolves Gitea's credentials
 func (r *Resolver) GetGiteaCredentials() (string, string, error) {
-	s, err := r.cluster.GetSecret(r.config.CarrierWorkloadsNamespace, GiteaCredentialsSecret)
+	s, err := r.cluster.GetSecret(r.config.FusemlWorkloadsNamespace, GiteaCredentialsSecret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to read gitea credentials")
 	}

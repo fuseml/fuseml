@@ -50,7 +50,7 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GiteaDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Gitea because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Gitea because namespace either doesn't exist or not owned by Fuseml")
 		return nil
 	}
 
@@ -131,9 +131,9 @@ gitea:
   admin:
     username: "dev"
     password: "changeme"
-    email: "admin@carrier.sh"
+    email: "admin@fuseml.sh"
   config:
-    APP_NAME: "Carrier"
+    APP_NAME: "Fuseml"
     RUN_MODE: prod
     repository:
       ROOT:  "/data/git/gitea-repositories"
@@ -168,7 +168,7 @@ gitea:
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
 	}
-	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 	if err != nil {
 		return err
 	}
