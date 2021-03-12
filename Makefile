@@ -94,9 +94,6 @@ tools-install:
 tools-versions:
 	@./scripts/tools-versions.sh
 
-version:
-	@./scripts/version.sh
-
 istio-install:
 	@./scripts/istio-minimal-install.sh
 
