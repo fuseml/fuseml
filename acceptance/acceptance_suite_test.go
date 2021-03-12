@@ -30,10 +30,10 @@ func TestAcceptance(t *testing.T) {
 
 var nodeSuffix, nodeTmpDir string
 
-var withKnative bool
+var serve string
 
 func init() {
-	flag.BoolVar(&withKnative, "with-knative", false, "test fuseml with knative pre-installed")
+	flag.StringVar(&serve, "serve", "", "inference service to serve the model")
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -81,9 +81,14 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
-	if withKnative {
+	if serve == "knative" {
 		fmt.Printf("Installing Knative on node %d\n", config.GinkgoConfig.ParallelNode)
 		installKnative()
+	}
+
+	if serve == "kfserving" {
+		fmt.Printf("Installing KFServing on node %d\n", config.GinkgoConfig.ParallelNode)
+		installKfserving()
 	}
 
 	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -155,6 +160,13 @@ func installKnative() {
 	_, err := RunProc("make knative-install", "..", false)
 	if err != nil {
 		panic("Installing Knative failed: " + err.Error())
+	}
+}
+
+func installKfserving() {
+	_, err := RunProc("make kfserving-install", "..", false)
+	if err != nil {
+		panic("Installing KFServing failed: " + err.Error())
 	}
 }
 

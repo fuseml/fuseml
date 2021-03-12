@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        ingress: ['traefik', "istio/knative"]
+        ingress: ["traefik", "knative", "kfserving"]
       fail-fast: false
 
     steps:

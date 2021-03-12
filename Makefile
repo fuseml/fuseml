@@ -41,10 +41,13 @@ test:
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
 test-acceptance-traefik:
-	@./scripts/test-acceptance.sh
+	@./scripts/test-acceptance.sh -- -serve=deployment
 
-test-acceptance-istio/knative:
-	@./scripts/test-acceptance.sh -- -with-knative=true
+test-acceptance-knative:
+	@./scripts/test-acceptance.sh -- -serve=knative
+
+test-acceptance-kfserving:
+	@./scripts/test-acceptance.sh -- -serve=kfserving
 
 generate:
 	go generate ./...
