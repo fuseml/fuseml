@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mlflow.fullname" . }}
+  labels:
+    {{- include "mlflow.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "mlflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      labels:
+        {{- include "mlflow.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "mlflow.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: WORKERS
+              value: "{{ .Values.workers }}"
+            - name: BACKEND_URI
+            {{- if .Values.mysql.enabled }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-mysql-conn" (include "mlflow.fullname" .) }}
+                  key: DB_CONNECT_URL
+            {{- else }}
+              value: "sqlite:///{{ .Values.persistence.persistentVolumeClaim.sqlite.rootDirectory }}/mlflow.db"
+            {{- end }}
+            - name: ARTIFACT_ROOT
+            {{- if .Values.minio.enabled }}
+              value: "s3://{{ .Values.minio.defaultBucket.name }}/"
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://{{ printf "%s-minio" (include "mlflow.fullname" .) }}:9000/"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-minio" (include "mlflow.fullname" .) }}
+                  key: accesskey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-minio" (include "mlflow.fullname" .) }}
+                  key: secretkey
+            {{- else }}
+              value: {{ .Values.persistence.persistentVolumeClaim.artifact.rootDirectory }}
+            {{- end }}
+            {{- if .Values.prometheus.expose }}
+            - name: PROMETHEUS_METRICS
+              value: {{ .Values.persistence.persistentVolumeClaim.metrics.rootDirectory }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+          {{- if not .Values.mysql.enabled }}
+            - name: database-data
+              mountPath: {{ .Values.persistence.persistentVolumeClaim.sqlite.rootDirectory }}
+              subPath: {{ .Values.persistence.persistentVolumeClaim.sqlite.subPath }}
+          {{- end }}
+          {{- if not .Values.minio.enabled }}
+            - name: artifact-data
+              mountPath: {{ .Values.persistence.persistentVolumeClaim.artifact.rootDirectory }}
+              subPath: {{ .Values.persistence.persistentVolumeClaim.artifact.subPath }}
+          {{- end }}
+          {{- if .Values.prometheus.expose }}
+            - name: metrics-data
+              mountPath: {{ .Values.persistence.persistentVolumeClaim.metrics.rootDirectory }}
+              subPath: {{ .Values.persistence.persistentVolumeClaim.metrics.subPath }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        {{- if not .Values.mysql.enabled }}
+        - name: database-data
+        {{- if and .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.persistentVolumeClaim.sqlite.existingClaim | default (printf "%s-database" (include "mlflow.fullname" .)) }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
+        {{- if not .Values.minio.enabled }}
+        - name: artifact-data
+        {{- if and .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.persistentVolumeClaim.artifact.existingClaim | default (printf "%s-artifact" (include "mlflow.fullname" .)) }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.prometheus.expose }}
+        - name: metrics-data
+        {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.persistentVolumeClaim.artifact.existingClaim | default (printf "%s-metrics" (include "mlflow.fullname" .)) }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

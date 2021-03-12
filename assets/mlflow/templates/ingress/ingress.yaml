@@ -1,0 +1,47 @@
+{{- if .Values.ingress.enabled }}
+{{- $ingress := .Values.ingress -}}
+{{- $tls := .Values.ingress.tls -}}
+{{- $fullName := include "mlflow.fullname" . -}}
+{{- $kubeVersion := .Capabilities.KubeVersion.GitVersion -}}
+{{- if semverCompare "<1.14-0" $kubeVersion }}
+apiVersion: extensions/v1beta1
+{{- else if semverCompare "<1.19-0" $kubeVersion }}
+apiVersion: networking.k8s.io/v1beta1
+{{- else }}
+apiVersion: networking.k8s.io/v1
+{{- end }}
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "mlflow.labels" . | nindent 4 }}
+  annotations:
+{{ toYaml $ingress.annotations | indent 4 }}
+spec:
+{{- if $tls.enabled }}
+  tls:
+    - hosts:
+{{ toYaml $ingress.hosts | indent 8 }}
+      secretName: {{ printf "%s-ca" (include "mlflow.fullname" .) }}
+{{- end }}
+  rules:
+  {{- range $ingress.hosts }}
+    - http:
+        paths:
+        {{- if semverCompare "<1.19-0" $kubeVersion }}
+          - path: "/"
+            backend:
+              serviceName: {{ $fullName }}
+              servicePort: 80
+        {{- else }}
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: 80
+        {{- end }}
+      host: {{ . | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,17 @@
+apiVersion: v2
+appVersion: 1.14.0
+dependencies:
+- condition: mysql.enabled
+  name: mysql
+  repository: https://charts.bitnami.com/bitnami
+  version: 8.4.1
+- condition: minio.enabled
+  name: minio
+  repository: https://helm.min.io/
+  version: 8.0.10
+description: |
+  [MLFlow](https://mlflow.org/) is an open source platform specialized in tracking ML experiments, and packaging and deploying ML models.
+icon: https://www.mlflow.org/images/MLflow-logo-final-white-TM.png
+name: mlflow
+type: application
+version: 0.0.1

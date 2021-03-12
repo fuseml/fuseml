@@ -64,8 +64,14 @@ gitlint:
 tools:
 	go get github.com/rakyll/statik
 
+
 update_registry:
 	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
+
+update_mlflow:
+	helm package ./assets/mlflow/ -d embedded-files
+
+update_charts: update_registry update_mlflow
 
 update_tekton:
 	mkdir -p embedded-files/tekton
