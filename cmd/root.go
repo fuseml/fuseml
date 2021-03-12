@@ -51,6 +51,8 @@ func Execute() {
 	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
 	argToEnv["verbosity"] = "VERBOSITY"
 
+	client.CmdPush.Flags().StringVarP(&client.FlagServe, "serve", "s", "", "inference service to serve the model (kfserving, knative, deployment)")
+
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)

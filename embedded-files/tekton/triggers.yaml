@@ -140,6 +140,26 @@ spec:
     workspaces:
     - name: source
       workspace: source
+  - name: get-serving-type
+    taskRef:
+      name: get-serving-workload
+    runAfter:
+    - clone
+    workspaces:
+    - name: source
+      workspace: source
+  - name: prepare-trained-model
+    when:
+    - input: "$(tasks.get-serving-type.results.type)"
+      operator: in
+      values: ["kfserving"]
+    taskRef:
+      name: model-pkl-to-joblib
+    runAfter:
+    - train
+    params:
+    - name: model-uri
+      value: $(tasks.train.results.MODEL-URI)
   - name: serve
     taskRef:
       name: serve
@@ -148,8 +168,8 @@ spec:
     params:
     - name: IMAGE-SHA
       value: $(tasks.build.results.IMAGE-DIGEST)
-    - name: RUN-ID
-      value: $(tasks.train.results.RUN-ID)
+    - name: MODEL-URI
+      value: $(tasks.train.results.MODEL-URI)
     workspaces:
     - name: source
       workspace: source
@@ -191,8 +211,8 @@ spec:
   workspaces:
   - name: source
   results:
-  - name: RUN-ID
-    description: ID of the training execution.
+  - name: MODEL-URI
+    description: location where the trained model is stored.
   steps:
   - name: run
     image: $(params.IMAGE)
@@ -214,11 +234,28 @@ spec:
         secretKeyRef:
           name: mlflow-minio
           key: secretkey
-  - name: run-id-to-results
+  - name: model-uri-to-results
     image: $(params.IMAGE)
     workingDir: "/workspace/source/app"
     script: |
-      grep -oEm1 '[a-f0-9]{32}' train.log | tr -d '\n' | tee $(results.RUN-ID.path)
+      run_id=$(grep -oEm1 '[a-f0-9]{32}' train.log)
+      model_uri="$(mlflow runs describe --run-id ${run_id} | grep -oEm1 's3.*artifacts')/model"
+      printf "${model_uri}" | tee $(results.MODEL-URI.path)
+    env:
+    - name: MLFLOW_TRACKING_URI
+      value: "http://mlflow"
+    - name: MLFLOW_S3_ENDPOINT_URL
+      value: "http://mlflow-minio:9000"
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: accesskey
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: secretkey
 
 ---
 apiVersion: tekton.dev/v1beta1
@@ -229,7 +266,7 @@ metadata:
 spec:
   params:
   - name: IMAGE-SHA
-  - name: RUN-ID
+  - name: MODEL-URI
   workspaces:
   - name: source
   steps:
@@ -237,4 +274,66 @@ spec:
     image: lachlanevenson/k8s-kubectl
     workingDir: "/workspace/source/app"
     script: |
-      sed "s/#RUN_ID#/$(params.RUN-ID)/g; s/#IMAGE_SHA#/$(params.IMAGE-SHA)/g" .fuseml/serve.yaml | kubectl apply -f -
+      #!/bin/sh
+      sed "s#__MODEL_URI__#$(params.MODEL-URI)#g; s#__IMAGE_SHA__#$(params.IMAGE-SHA)#g; s#__AWS_ACCESS_KEY_ID__#${AWS_ACCESS_KEY_ID}#g; s#__AWS_SECRET_ACCESS_KEY__#${AWS_SECRET_ACCESS_KEY}#g" .fuseml/serve.yaml | kubectl apply -f -
+    #TODO: when kfserving installation is part of this tool, remove replacing AWS credentials and instead create a service account for kfserving as part of its installation
+    env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: accesskey
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: secretkey
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: get-serving-workload
+  namespace: fuseml-workloads
+spec:
+  workspaces:
+  - name: source
+  results:
+  - name: type
+    description: indicates which workload will be used to deploy the model
+  steps:
+  - name: get-serving-workload
+    workingDir: "/workspace/source/app"
+    image: alpine
+    script: |
+      awk '/fuseml\/serving/ { gsub(/"/, "", $2); printf $2 }' .fuseml/serve.yaml | tee $(results.type.path)
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: model-pkl-to-joblib
+  namespace: fuseml-workloads
+spec:
+  params:
+  - name: model-uri
+  steps:
+  - name: pkl-to-joblib
+    image: minio/mc
+    script: |
+      #!/bin/sh
+      model_s3uri=$(params.model-uri)
+      mc alias set minio http://mlflow-minio:9000 ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY}
+      mc cp minio${model_s3uri//s3:\//}/model.pkl minio${model_s3uri//s3:\//}/model.joblib
+    env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: accesskey
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: mlflow-minio
+          key: secretkey
+  

@@ -1,0 +1,43 @@
+#TODO: when kfserving installation is part of this tool, remove creating secret/servicceaccount and instead create it as part of kfserving installation
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}-storage"
+  annotations:
+     serving.kubeflow.org/s3-endpoint: mlflow-minio:9000
+     serving.kubeflow.org/s3-usehttps: "0"
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: __AWS_ACCESS_KEY_ID__
+  AWS_SECRET_ACCESS_KEY: __AWS_SECRET_ACCESS_KEY__
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}-kfserving"
+secrets:
+  - name: "{{ .Org }}-{{ .AppName }}-storage"
+---
+apiVersion: "serving.kubeflow.org/v1beta1"
+kind: "InferenceService"
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}"
+  labels:
+    fuseml/app-name: "{{ .AppName }}"
+    fuseml/org: "{{ .Org }}"
+    fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+    fuseml/serving: "kfserving"
+spec:
+  predictor:
+    serviceAccountName: "{{ .Org }}-{{ .AppName }}-kfserving"
+    sklearn:
+      protocolVersion: v2
+      storageUri: "__MODEL_URI__"
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 100m
+          memory: 128Mi
