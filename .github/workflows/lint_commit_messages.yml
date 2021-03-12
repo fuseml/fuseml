@@ -10,9 +10,10 @@ jobs:
 
     steps:
       - name: Setup gitlint
-        run: sudo apt-get install gitlint
+        run: sudo pip3 install gitlint
       - name: Checkout
-        run: git clone https://github.com/fuseml/fuseml.git && cd fuseml && git checkout ${GITHUB_HEAD_REF}
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Lint new commits
-        working-directory: ./fuseml
-        run: gitlint --commits "origin..HEAD"
+        run: gitlint --commits "origin/main..HEAD"
