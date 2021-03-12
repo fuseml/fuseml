@@ -99,6 +99,14 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 	if err != nil {
 		return err
 	}
+	if action == "install" {
+		helmCmd := fmt.Sprintf("helm list --namespace %s --deployed -q | grep gitea", GiteaDeploymentID)
+		out, _ := helpers.RunProc(helmCmd, currentdir, k.Debug)
+		if strings.TrimSpace(out) == "gitea" {
+			ui.Exclamation().Msg("gitea already present under " + GiteaDeploymentID + " namespace, skipping installation")
+			return nil
+		}
+	}
 
 	// Setup Gitea helm values
 	var helmArgs []string
@@ -215,8 +223,7 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		ui.Exclamation().Msg("Namespace " + GiteaDeploymentID + " already present, skipping installation")
-		return nil
+		ui.Note().Msg("Namespace " + GiteaDeploymentID + " already present")
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Gitea...")

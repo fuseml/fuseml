@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ $(kubectl get job default-domain -n knative-serving -o jsonpath="{.status.conditions[0].type}") = "Complete" ] ; then
+if [ "$(kubectl get job default-domain -n knative-serving -o jsonpath='{.status.conditions[0].type}')" = "Complete" ] ; then
   echo "knative controller already installed"
   exit
 fi

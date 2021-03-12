@@ -101,6 +101,15 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return err
 	}
 
+	if action == "install" {
+		helmCmd := fmt.Sprintf("helm list --namespace %s --deployed -q | grep %s", RegistryDeploymentID, RegistryDeploymentID)
+		out, _ := helpers.RunProc(helmCmd, currentdir, k.Debug)
+		if strings.TrimSpace(out) == RegistryDeploymentID {
+			ui.Exclamation().Msg(RegistryDeploymentID + " already present under " + RegistryDeploymentID + " namespace, skipping installation")
+			return nil
+		}
+	}
+
 	if err = createQuarksMonitoredNamespace(c, RegistryDeploymentID); err != nil {
 		return err
 	}
@@ -144,8 +153,7 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		ui.Exclamation().Msg("Namespace " + RegistryDeploymentID + " already present, skipping installation")
-		return nil
+		ui.Note().Msg("Namespace " + RegistryDeploymentID + " already present")
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
