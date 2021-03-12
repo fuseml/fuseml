@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ fluo ]
+    branches: [ main ]
   pull_request:
-    branches: [ fluo ]
+    branches: [ main ]
 
 jobs:
   lint:
