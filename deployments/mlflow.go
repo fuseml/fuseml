@@ -114,11 +114,13 @@ func (k MLflow) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	subdomain := MLflowDeploymentID + "." + domain
 	configPath := ""
 
-	helmCmd := fmt.Sprintf("helm list --namespace %s -q | grep %s", mlflowNamespace, MLflowDeploymentID)
-	out, err := helpers.RunProc(helmCmd, currentdir, k.Debug)
-	if strings.TrimSpace(out) == MLflowDeploymentID {
-		ui.Exclamation().Msg(MLflowDeploymentID + " already present under " + mlflowNamespace + " namespace, skipping installation")
-		return nil
+	if action == "install" {
+		helmCmd := fmt.Sprintf("helm list --namespace %s --deployed -q | grep %s", mlflowNamespace, MLflowDeploymentID)
+		out, _ := helpers.RunProc(helmCmd, currentdir, k.Debug)
+		if strings.TrimSpace(out) == MLflowDeploymentID {
+			ui.Exclamation().Msg(MLflowDeploymentID + " already present under " + mlflowNamespace + " namespace, skipping installation")
+			return nil
+		}
 	}
 
 	if c.HasIstio() {
@@ -166,8 +168,8 @@ minio:
 		defer os.Remove(configPath)
 	}
 
-	helmCmd = fmt.Sprintf("helm %s %s --create-namespace --values '%s' --namespace %s %s", action, MLflowDeploymentID, configPath, mlflowNamespace, tarPath)
-	if out, err = helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --values '%s' --namespace %s %s", action, MLflowDeploymentID, configPath, mlflowNamespace, tarPath)
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing MLflow: " + out)
 	}
 
@@ -199,19 +201,6 @@ func (k MLflow) GetVersion() string {
 }
 
 func (k MLflow) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-
-	// FIXME do not check for namespace presence, it is not installed into its own
-	/*
-		_, err := c.Kubectl.CoreV1().Namespaces().Get(
-			context.Background(),
-			MLflowDeploymentID,
-			metav1.GetOptions{},
-		)
-		if err == nil {
-			ui.Exclamation().Msg("Namespace " + mlflowNamespace + " already present, skipping installation")
-			return nil
-		}
-	*/
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying MLflow...")
 
