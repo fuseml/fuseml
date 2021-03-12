@@ -1,0 +1,87 @@
+---
+ingress:
+  enabled: false
+  tls:
+    enabled: true
+    certSource: auto
+  hosts: [""]
+  annotations: {}
+
+persistence:
+  enabled: true
+  resourcePolicy: "keep"
+  persistentVolumeClaim:
+    sqlite:
+      rootDirectory: /mlflow-db
+      existingClaim: ""
+      storageClass: ""
+      subPath: ""
+      accessMode: ReadWriteOnce
+      size: 5Gi
+    artifact:
+      rootDirectory: /mlflow-artifact
+      existingClaim: ""
+      storageClass: ""
+      subPath: ""
+      accessMode: ReadWriteOnce
+      size: 5Gi
+    metrics:
+      rootDirectory: /mlflow-metrics
+      existingClaim: ""
+      storageClass: ""
+      subPath: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+
+replicas: 1
+workers: 4
+
+image:
+  pullSecrets:
+  pullPolicy: Always
+  repository: ghcr.io/fuseml/mlflow
+  tag:
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name:
+
+podSecurityContext: {}
+securityContext: {}  
+
+prometheus:
+  expose: true
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+
+mysql:
+  enabled: true
+  auth:
+    database: mlflow-tracking
+    username: mlflow
+    password: mlflowdbpwd
+  primary:
+    persistence:
+      size: 2Gi
+
+minio:
+  enabled: true
+  defaultBucket:
+    enabled: true
+    name: mlflow-artifacts
+  ingress:
+    enabled: false
+    hosts: []
+  persistence:
+    size: 5Gi
+  podLabels:
+    app.kubernetes.io/name: minio
+  resources:
+    requests:
+      memory: 512Mi
