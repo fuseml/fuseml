@@ -41,3 +41,5 @@ spec:
 EOF
 
 bin/istioctl manifest install -yf istio-minimal-operator.yaml
+cd ..
+rm -rf istio-${ISTIO_VERSION}
