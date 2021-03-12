@@ -2,12 +2,15 @@
 ########################################################################
 ## Development
 
-build: tools embed_files lint build-amd64
+build: tools embed_files lint build-local
 
 build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
+
+build-local: lint
+	go build -ldflags '$(LDFLAGS)' -o dist/fuseml
 
 build-arm32: lint
 	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-arm32

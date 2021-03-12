@@ -188,7 +188,7 @@ func buildFuseml() {
 }
 
 func copyFuseml() {
-	output, err := RunProc("cp dist/fuseml-* "+nodeTmpDir+"/fuseml", "..", false)
+	output, err := RunProc("cp dist/fuseml "+nodeTmpDir+"/", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't copy FuseML: %s\n %s\n"+err.Error(), output))
 	}
