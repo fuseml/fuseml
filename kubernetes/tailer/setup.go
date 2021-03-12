@@ -6,9 +6,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

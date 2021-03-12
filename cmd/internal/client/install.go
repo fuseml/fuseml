@@ -1,10 +1,10 @@
 package client
 
 import (
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	"github.com/fuseml/fuseml/cli/paas"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas"
 )
 
 var NeededOptions = kubernetes.InstallationOptions{

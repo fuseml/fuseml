@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fuseml/fuseml/cli/helpers"
+	"github.com/fuseml/fuseml/cli/kubernetes"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

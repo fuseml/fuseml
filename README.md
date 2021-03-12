@@ -1,6 +1,6 @@
 # FuseML - Flexible Universal Service orchestration for Machine Learning
 
-![CI](https://github.com/SUSE/carrier/workflows/CI/badge.svg)
+![CI](https://github.com/fuseml/fuseml/workflows/CI/badge.svg)
 
 Build your own custom MLOps orchestration workflows from composable automation recipes adapted to your favorite AI/ML tools, to get you from ML code to inference serving in production as fast as lighting a fuse.
 
@@ -54,7 +54,7 @@ The FuseML team is still in the process of defining the project strategy, but we
 
 The basic FuseML workflow can be described as a GitOps type of workflow that starts with your ML code and automatically runs all the steps necessary to build and serve your machine learning model. FuseML's job begins when your machine learning code is ready for execution.
 
-1. install the FuseML Ochestrator in a kubernetes cluster of your choice
+1. install the FuseML Ochestrator in a kubernetes cluster of your choice (see [Installation Instructions](# Install))
 2. write your code using the AI/ML library of your choice (e.g. TensorFlow, PyTorch, SKLearn, XGBoost)
 3. organize your code using one of the conventions or experiment tracking tools supported by FuseML
 4. use the FuseML CLI to push your code to the FuseML Orchestrator instance and, optionally, supply parameters to customize the end-to-end MLOps workflow
@@ -97,7 +97,7 @@ $ carrier uninstall
 
 ### Push an application
 
-Run the following command for any supported application directory (e.g. inside [sample-app directory](sample-app)).
+Run the following command for any supported application directory (e.g. one of the applications inside the [examples directory](examples)).
 
 ```bash
 

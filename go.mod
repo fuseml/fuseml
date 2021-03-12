@@ -1,4 +1,4 @@
-module github.com/suse/carrier/cli
+module github.com/fuseml/fuseml/cli
 
 go 1.13
 

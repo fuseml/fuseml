@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/fuseml/fuseml/cli/paas/ui"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment

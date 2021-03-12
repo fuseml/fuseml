@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/suse/carrier/cli/kubernetes/platform/generic"
+	"github.com/fuseml/fuseml/cli/kubernetes/platform/generic"
 
 	"github.com/kyokomi/emoji"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,9 +3,9 @@ package client
 import (
 	"os"
 
+	"github.com/fuseml/fuseml/cli/paas"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/paas"
 )
 
 var ()

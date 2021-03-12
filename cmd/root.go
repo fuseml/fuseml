@@ -6,12 +6,12 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/fuseml/fuseml/cli/cmd/internal/client"
+	"github.com/fuseml/fuseml/cli/kubernetes/config"
+	pconfig "github.com/fuseml/fuseml/cli/paas/config"
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/suse/carrier/cli/cmd/internal/client"
-	"github.com/suse/carrier/cli/kubernetes/config"
-	pconfig "github.com/suse/carrier/cli/paas/config"
 )
 
 const (
