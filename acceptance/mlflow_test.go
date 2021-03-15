@@ -33,7 +33,7 @@ var _ = Describe("MLflow Model", func() {
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../examples/mlflow-model")
 
-			pushCmd := fmt.Sprintf("push --verbosity 1 --serve %s ", serve)
+			pushCmd := fmt.Sprintf("push --serve %s ", serve)
 			out, err := Fuseml(pushCmd+appName, appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Fuseml("apps", "")
