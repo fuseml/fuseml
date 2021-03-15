@@ -178,8 +178,17 @@ minio:
 		return err
 	}
 
+	// wait for minio using a different label as it contains a job that creates and deletes a pod when completed and when that happens between
+	// the checks it fails as it cannot find the pod when checking if the pod is running. Using the label "app" the check is performed against
+	// the pod created by the minio deployment.
+	if err := c.WaitUntilPodBySelectorExist(ui, mlflowNamespace, "app=minio", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting MLflow minio deployment to exist")
+	}
+	if err := c.WaitForPodBySelectorRunning(ui, mlflowNamespace, "app=minio", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting MLflow minio deployment to come up")
+	}
+
 	for _, podname := range []string{
-		"minio",
 		"mysql",
 		"mlflow",
 	} {
