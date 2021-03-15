@@ -27,9 +27,8 @@ var _ = Describe("MLflow Model", func() {
 
 		It("pushes and deletes an mlflow model", func() {
 			By("pushing the mlflow model")
-			// give some time for the tekton listener to start listening
-			time.Sleep(10 * time.Second)
 			currentDir, err := os.Getwd()
+			time.Sleep(10 * time.Second)
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../examples/mlflow-model")
 
