@@ -21,9 +21,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ github.job }}-${{ runner.os }}-go
       - name: Lint
         run: |
           make lint
@@ -42,9 +42,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ github.job }}-${{ runner.os }}-go-
       - name: Setup Ginkgo Test Framework
         run: |
           go get -u github.com/onsi/ginkgo/ginkgo
@@ -56,10 +56,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        ingress: ['traefik', "istio/knative"]
+        ingress: ["traefik", "knative", "kfserving"]
       fail-fast: false
 
     steps:
+      - name: Free disk space
+        run: |
+          echo "Available storage:"
+          df -h
+          echo
+          echo -n "  Removing: .NET (frees ~22GB)"
+          sudo rm -rf /usr/share/dotnet
+          echo "... done"
+          echo
+          echo "Available storage:"
+          df -h
       - name: Checkout
         uses: actions/checkout@v2
       - name: Setup Go
@@ -70,9 +81,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ github.job }}-${{ runner.os }}-go-
       - name: Setup Ginkgo Test Framework
         run: |
           go get -u github.com/onsi/ginkgo/ginkgo
@@ -91,5 +102,3 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           make test-acceptance-${{ matrix.ingress }}
-
-

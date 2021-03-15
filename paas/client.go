@@ -16,6 +16,7 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/fuseml/fuseml/cli/deployments"
+	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/kubernetes/tailer"
 	"github.com/fuseml/fuseml/cli/paas/config"
@@ -150,11 +151,17 @@ func (c *FusemlClient) Apps() error {
 			}
 
 			knService, err := knc.ServingV1().Services(c.config.FusemlWorkloadsNamespace).
-				Get(context.TODO(), fmt.Sprintf("%s-%s", c.config.Org, app.Name), metav1.GetOptions{})
+				List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("fuseml/app-guid=%s.%s", c.config.Org, app.Name)})
 			if err != nil {
 				return errors.Wrap(err, "failed to get knative service")
 			}
-			routes = knService.Status.URL.String()
+			if len(knService.Items) < 1 {
+				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
+			}
+
+			// FIXME: KN services created by KFServing has -predictor-default appended into its URL, this code is hardcoded to replace it for now
+			// but needs a better approach for this
+			routes = strings.ReplaceAll(knService.Items[0].Status.URL.String(), "-predictor-default.", ".")
 		} else {
 			details.Info("kube get ingress", "App", app.Name)
 			ingRoutes, err := c.kubeClient.ListIngressRoutes(
@@ -221,39 +228,25 @@ func (c *FusemlClient) Delete(app string) error {
 		WithStringValue("Name", app).
 		Msg("Deleting application...")
 
+	appDir, err := c.gitCloneApp(app)
+	if err != nil {
+		return errors.Wrap(err, "failed cloning app repository")
+	}
+
+	details.Info("deleting app workload")
+	out, err := helpers.Kubectl(fmt.Sprintf("delete -n %s --filename %s/.fuseml/serve.yaml", c.config.FusemlWorkloadsNamespace, appDir))
+	if err != nil {
+		return errors.Wrap(err, `failed to delete application deployment`+out)
+	}
+	c.ui.Normal().Msg("Deleted app workload.")
+
 	details.Info("delete repo")
-	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
+	_, err = c.giteaClient.DeleteRepo(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete repo")
 	}
-
 	c.ui.Normal().Msg("Deleted app code repository.")
 
-	if c.kubeClient.HasIstio() {
-		details.Info("delete knative service")
-
-		knc, err := knversionedclient.NewForConfig(c.kubeClient.RestConfig)
-		if err != nil {
-			return errors.Wrap(err, "failed to create knative client.")
-		}
-
-		err = knc.ServingV1().Services(c.config.FusemlWorkloadsNamespace).
-			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
-		if err != nil {
-			return errors.Wrap(err, "failed to knative service")
-		}
-	} else {
-
-		details.Info("delete deployment")
-
-		err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.FusemlWorkloadsNamespace).
-			Delete(context.Background(), fmt.Sprintf("%s-%s", c.config.Org, app), metav1.DeleteOptions{})
-		if err != nil {
-			return errors.Wrap(err, "failed to delete application deployment")
-		}
-	}
-
-	c.ui.Normal().Msg("Deleted app containers.")
 	c.ui.Success().Msg("Application deleted.")
 
 	return nil
@@ -313,7 +306,7 @@ func (c *FusemlClient) Orgs() error {
 }
 
 // Push pushes an app
-func (c *FusemlClient) Push(app string, path string) error {
+func (c *FusemlClient) Push(app string, path string, serve string) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -352,7 +345,7 @@ func (c *FusemlClient) Push(app string, path string) error {
 	}
 
 	details.Info("prepare code")
-	tmpDir, err := c.prepareCode(app, c.config.Org, path)
+	tmpDir, err := c.prepareCode(app, c.config.Org, path, serve)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare code")
 	}
@@ -504,10 +497,10 @@ func (c *FusemlClient) appDefaultRoute(name string) (string, error) {
 	return route, nil
 }
 
-func (c *FusemlClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
+func (c *FusemlClient) prepareCode(name, org, appDir string, serve string) (string, error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
-	tmpDir, err = ioutil.TempDir("", "fuseml-app")
+	tmpDir, err := ioutil.TempDir("", "fuseml-app")
 	if err != nil {
 		return "", errors.Wrap(err, "can't create temp directory")
 	}
@@ -549,80 +542,17 @@ RUN conda env create -f /env/conda.yaml
 		return "", errors.Wrap(err, "failed to write FuseML Dockerfile definition")
 	}
 
-	deploymentTmpl, err := template.New("deployment").Parse(`
-{{- if .HasIstio }}
-apiVersion: serving.knative.dev/v1
-kind: Service
-metadata:
-  name: "{{ .Org }}-{{ .AppName }}"
-  labels:
-    fuseml/app-name: "{{ .AppName }}"
-    fuseml/org: "{{ .Org }}"
-    fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-spec:
-  template:
-    metadata:
-      labels:
-        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-{{- else }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: "{{ .Org }}-{{ .AppName }}"
-  labels:
-    fuseml/app-guid:  "{{ .Org }}.{{ .AppName }}"
-    fuseml/app-name: "{{ .AppName }}"
-    fuseml/org: "{{ .Org }}"
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: "{{ .AppName }}"
-  template:
-    metadata:
-      labels:
-        app: "{{ .AppName }}"
-        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-        # Needed for the ingress extension to work:
-        cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
-      annotations:
-        # Needed for the ingress extension to work:
-        cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
-        cloudfoundry.org/application_name:  "{{ .AppName }}"
-{{- end }}
-    spec:
-      serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
-      containers:
-        - name: "{{ .AppName }}"
-          image: "127.0.0.1:30500/apps/{{ .AppName }}@#IMAGE_SHA#"
-          command:
-            - bash
-          args:
-            - -c
-            - |
-              model_uri="$(mlflow runs describe --run-id #RUN_ID# | grep -oEm1 's3.*artifacts')/model"
-              mlflow models serve --no-conda -h 0.0.0.0 -p 8080 -m ${model_uri}
-          ports:
-            - containerPort: 8080
-          env:
-            - name: MLFLOW_TRACKING_URI
-              value: "http://mlflow/"
-            - name: MLFLOW_S3_ENDPOINT_URL
-              value: "http://mlflow-minio:9000/"
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  key: accesskey
-                  name: mlflow-minio
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: secretkey
-                  name: mlflow-minio
-  `)
+	servingType := c.getServingWorkloadType(serve)
+
+	tmplPathOnDisk, err := helpers.ExtractFile(`serving/` + servingType + `.yaml.tmpl`)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse deployment template for app")
+		return "", errors.New("Failed to extract embedded file: " + tmplPathOnDisk + " - " + err.Error())
+	}
+	defer os.Remove(tmplPathOnDisk)
+
+	servingTmpl, err := template.ParseFiles(tmplPathOnDisk)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse serving template for model")
 	}
 
 	appFile, err := os.Create(filepath.Join(tmpDir, ".fuseml", "serve.yaml"))
@@ -631,22 +561,22 @@ spec:
 	}
 	defer func() { err = appFile.Close() }()
 
-	err = deploymentTmpl.Execute(appFile, struct {
-		AppName  string
-		Route    string
-		Org      string
-		HasIstio bool
+	err = servingTmpl.Execute(appFile, struct {
+		AppName            string
+		Route              string
+		Org                string
+		ServiceAccountName string
 	}{
-		AppName:  name,
-		Route:    route,
-		Org:      c.config.Org,
-		HasIstio: c.kubeClient.HasIstio(),
+		AppName:            name,
+		Route:              route,
+		Org:                c.config.Org,
+		ServiceAccountName: deployments.WorkloadsDeploymentID,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to render kube resource definition")
 	}
 
-	return
+	return tmpDir, nil
 }
 
 func (c *FusemlClient) gitPush(name, tmpDir string) error {
@@ -733,7 +663,7 @@ func (c *FusemlClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.FusemlWorkloadsNamespace,
 		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
-		600)
+		750)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}
@@ -767,4 +697,59 @@ func (c *FusemlClient) ensureGoodOrg(org, msg string) error {
 	}
 
 	return nil
+}
+
+func (c *FusemlClient) getServingWorkloadType(serve string) string {
+	if serve != "" {
+		return strings.ToLower(serve)
+	}
+	if c.kubeClient.HasIstio() {
+		return "knative"
+	}
+	return "deployment"
+}
+
+func (c *FusemlClient) gitCloneApp(name string) (string, error) {
+	c.ui.Normal().Msg("Cloning application code ...")
+
+	tmpDir, err := ioutil.TempDir("", "fuseml-app")
+	if err != nil {
+		return "", errors.Wrap(err, "can't create temp directory")
+	}
+
+	giteaURL, err := c.giteaResolver.GetGiteaURL()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to resolve gitea host")
+	}
+
+	u, err := url.Parse(giteaURL)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse gitea url")
+	}
+
+	username, password, err := c.giteaResolver.GetGiteaCredentials()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to resolve gitea credentials")
+	}
+
+	u.User = url.UserPassword(username, password)
+	u.Path = path.Join(u.Path, c.config.Org, name)
+
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
+cd "%s"
+git clone --depth 1 "%s" .
+`, tmpDir, u.String()))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		c.ui.Problem().
+			WithStringValue("Stdout", string(output)).
+			WithStringValue("Stderr", "").
+			Msg("App push failed")
+		return "", errors.Wrap(err, "push script failed")
+	}
+
+	c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
+	c.ui.Success().Msg("Application clone successful")
+	return tmpDir, nil
 }

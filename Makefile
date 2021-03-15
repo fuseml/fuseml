@@ -2,12 +2,15 @@
 ########################################################################
 ## Development
 
-build: tools embed_files lint build-amd64
+build: tools embed_files lint build-local
 
 build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
+
+build-local: lint
+	go build -ldflags '$(LDFLAGS)' -o dist/fuseml
 
 build-arm32: lint
 	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-arm32
@@ -38,10 +41,13 @@ test:
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
 test-acceptance-traefik:
-	@./scripts/test-acceptance.sh
+	@./scripts/test-acceptance.sh -- -serve=deployment
 
-test-acceptance-istio/knative:
-	@./scripts/test-acceptance.sh -- -with-knative=true
+test-acceptance-knative:
+	@./scripts/test-acceptance.sh -- -serve=knative
+
+test-acceptance-kfserving:
+	@./scripts/test-acceptance.sh -- -serve=kfserving
 
 generate:
 	go generate ./...
@@ -99,6 +105,12 @@ istio-install:
 
 knative-install: istio-install
 	@./scripts/knative-install.sh
+
+cert-manager-install:
+	@./scripts/cert-manager-install.sh
+
+kfserving-install: knative-install cert-manager-install
+	@./scripts/kfserving-install.sh
 
 ########################################################################
 # Kube dev environments

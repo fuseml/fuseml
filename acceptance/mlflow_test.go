@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -27,15 +28,17 @@ var _ = Describe("MLflow Model", func() {
 		It("pushes and deletes an mlflow model", func() {
 			By("pushing the mlflow model")
 			currentDir, err := os.Getwd()
+			time.Sleep(10 * time.Second)
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../examples/mlflow-model")
 
-			out, err := Fuseml("push --verbosity 1 "+appName, appDir)
+			pushCmd := fmt.Sprintf("push --serve %s ", serve)
+			out, err := Fuseml(pushCmd+appName, appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Fuseml("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			routeRegex := `.*\|.*1\/1.*\|.*`
-			if withKnative {
+			if serve == "knative" || serve == "kfserving" {
 				routeRegex = `.*\|.*[0,1]\/[0,1].*\|.*`
 			}
 			Expect(out).To(MatchRegexp(appName + routeRegex))

@@ -4,8 +4,7 @@
 # nodes because they will all use the same cluster. This will lead to flaky
 # tests.
 if [ -z ${FUSEML_ACCEPTANCE_KUBECONFIG+x} ]; then
-  #ginkgo -p -stream acceptance/.
-  ginkgo -nodes 2 -stream acceptance/. ${@}
+  ginkgo -stream acceptance/. ${@}
 else
   ginkgo acceptance/. ${@}
 

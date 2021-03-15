@@ -29,11 +29,12 @@ func TestAcceptance(t *testing.T) {
 }
 
 var nodeSuffix, nodeTmpDir string
+var failed = false
 
-var withKnative bool
+var serve string
 
 func init() {
-	flag.BoolVar(&withKnative, "with-knative", false, "test fuseml with knative pre-installed")
+	flag.StringVar(&serve, "serve", "", "inference service to serve the model")
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -81,16 +82,28 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
-	if withKnative {
+	if serve == "knative" {
 		fmt.Printf("Installing Knative on node %d\n", config.GinkgoConfig.ParallelNode)
 		installKnative()
+	}
+
+	if serve == "kfserving" {
+		fmt.Printf("Installing KFServing on node %d\n", config.GinkgoConfig.ParallelNode)
+		installKfserving()
 	}
 
 	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
 	installFuseml()
 })
 
+var _ = AfterEach(func() {
+	failed = failed || CurrentGinkgoTestDescription().Failed
+})
+
 var _ = AfterSuite(func() {
+	if failed {
+		printClusterInfo()
+	}
 	fmt.Printf("Uninstall fuseml on node %d\n", config.GinkgoConfig.ParallelNode)
 	out, _ := uninstallFuseml()
 	match, _ := regexp.MatchString(`FuseML uninstalled`, out)
@@ -105,6 +118,7 @@ var _ = AfterSuite(func() {
 
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
+
 })
 
 func createCluster() {
@@ -114,7 +128,7 @@ func createCluster() {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	_, err := RunProc("k3d cluster create --k3s-server-arg '--no-deploy=traefik' --k3s-server-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-server-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' "+name, nodeTmpDir, false)
+	_, err := RunProc("k3d cluster create --agents 1 --k3s-server-arg '--no-deploy=traefik' --k3s-server-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-server-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' --k3s-agent-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' --k3s-agent-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' "+name, nodeTmpDir, false)
 	if err != nil {
 		panic("Creating k3d cluster failed: " + err.Error())
 	}
@@ -152,9 +166,23 @@ func deleteTmpDir() {
 }
 
 func installKnative() {
-	_, err := RunProc("make knative-install", "..", false)
+	_, err := RunProc("make knative-install", "..", true)
 	if err != nil {
 		panic("Installing Knative failed: " + err.Error())
+	}
+}
+
+func installKfserving() {
+	_, err := RunProc("make kfserving-install", "..", true)
+	if err != nil {
+		panic("Installing KFServing failed: " + err.Error())
+	}
+}
+
+func printClusterInfo() {
+	_, err := RunProc("df -h; kubectl get pods -A; kubectl top nodes; kubectl top pods -A; kubectl describe nodes; kubectl describe pods -A", "..", true)
+	if err != nil {
+		panic("Getting kubernetes info failed: " + err.Error())
 	}
 }
 
@@ -188,7 +216,7 @@ func buildFuseml() {
 }
 
 func copyFuseml() {
-	output, err := RunProc("cp dist/fuseml-* "+nodeTmpDir+"/fuseml", "..", false)
+	output, err := RunProc("cp dist/fuseml "+nodeTmpDir+"/", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't copy FuseML: %s\n %s\n"+err.Error(), output))
 	}
@@ -219,9 +247,9 @@ func Fuseml(command string, dir string) (string, error) {
 		commandDir = dir
 	}
 
-	cmd := fmt.Sprintf(nodeTmpDir+"/fuseml %s", command)
+	cmd := fmt.Sprintf(nodeTmpDir+"/fuseml --verbosity 1 %s", command)
 
-	return RunProc(cmd, commandDir, false)
+	return RunProc(cmd, commandDir, true)
 }
 
 func checkDependencies() error {

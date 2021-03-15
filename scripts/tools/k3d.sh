@@ -3,13 +3,13 @@
 
 TOOLS+=(k3d)
 
-K3D_VERSION="4.1.1"
+K3D_VERSION="4.3.0"
 
 function k3d_version { k3d version; }
 
-K3D_SHA256_DARWIN="40fe273f567bad7e031636fe896a05637f173f047ee41f9566a6ad933e7da34f"
-K3D_SHA256_LINUX="4148b8035774a2765969898cc73066491ac718d1b2890415a4625931aaacd3ac"
-K3D_SHA256_WINDOWS="dc13acba412b473ab5b602420bf61cb2149a8b99cc24a0261574e3f965f03560"
+K3D_SHA256_DARWIN="17925d18fb573932d57093afad0e772dce4b1181584a7a99fca19a58d478d9c5"
+K3D_SHA256_LINUX="afb1a4b2df657c3721cc4034a381c05c3c7cc343198103157317d1e891f2ee7f"
+K3D_SHA256_WINDOWS="a8434cb1d1314d0aaaeb62cb3c709e38ef5103f7ed790eca1ddacdb9ebf499d3"
 
 K3D_URL_DARWIN="https://github.com/rancher/k3d/releases/download/v{version}/k3d-darwin-amd64"
 K3D_URL_LINUX="https://github.com/rancher/k3d/releases/download/v{version}/k3d-linux-amd64"

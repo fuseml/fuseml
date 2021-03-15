@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
+var (
+	FlagServe string
+)
 
 // CmdPush implements the fuseml orgs command
 var CmdPush = &cobra.Command{
@@ -37,7 +39,7 @@ var CmdPush = &cobra.Command{
 			path = args[1]
 		}
 
-		err = client.Push(args[0], path)
+		err = client.Push(args[0], path, FlagServe)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app")
 		}
