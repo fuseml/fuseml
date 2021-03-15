@@ -663,7 +663,7 @@ func (c *FusemlClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.FusemlWorkloadsNamespace,
 		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
-		600)
+		750)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}
