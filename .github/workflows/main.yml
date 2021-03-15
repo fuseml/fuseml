@@ -60,6 +60,17 @@ jobs:
       fail-fast: false
 
     steps:
+      - name: Free disk space
+        run: |
+          echo "Available storage:"
+          df -h
+          echo
+          echo -n "  Removing: .NET (frees ~22GB)"
+          sudo rm -rf /usr/share/dotnet
+          echo "... done"
+          echo
+          echo "Available storage:"
+          df -h
       - name: Checkout
         uses: actions/checkout@v2
       - name: Setup Go
@@ -91,5 +102,3 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           make test-acceptance-${{ matrix.ingress }}
-
-
