@@ -470,3 +470,16 @@ func (c *Cluster) HasIstio() bool {
 	}
 	return true
 }
+
+// HasKnative checks if Knative serving is installed on the cluster
+func (c *Cluster) HasKnative() bool {
+	_, err := c.Kubectl.CoreV1().Services("knative-serving").Get(
+		context.Background(),
+		"controller",
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return false
+	}
+	return true
+}
