@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,6 +91,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	if serve == "kfserving" {
 		fmt.Printf("Installing KFServing on node %d\n", config.GinkgoConfig.ParallelNode)
 		installKfserving()
+	}
+
+	if strings.Contains(serve, "seldon") {
+		fmt.Printf("Installing seldon on node %d\n", config.GinkgoConfig.ParallelNode)
+		installSeldon()
 	}
 
 	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -176,6 +182,13 @@ func installKfserving() {
 	_, err := RunProc("make kfserving-install", "..", true)
 	if err != nil {
 		panic("Installing KFServing failed: " + err.Error())
+	}
+}
+
+func installSeldon() {
+	_, err := RunProc("make seldon-install", "..", true)
+	if err != nil {
+		panic("Installing Seldon Operator failed: " + err.Error())
 	}
 }
 
