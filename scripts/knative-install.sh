@@ -11,7 +11,6 @@ export KNATIVE_VERSION=v0.21.0
 kubectl apply --filename https://github.com/knative/serving/releases/download/${KNATIVE_VERSION}/serving-crds.yaml
 kubectl apply --filename https://github.com/knative/serving/releases/download/${KNATIVE_VERSION}/serving-core.yaml
 kubectl apply --filename https://github.com/knative/net-istio/releases/download/${KNATIVE_VERSION}/release.yaml
-curl -L https://github.com/knative/serving/releases/download/${KNATIVE_VERSION}/serving-default-domain.yaml | sed 's/xip.io/omg.howdoi.website/g' | kubectl apply -f -
 
 # Set the knative default revision timeout from 5 minutes to 1 minute as this
 # value is used as temrinationGracePeriod on the pod and it is making deleting
@@ -28,4 +27,4 @@ data:
   revision-timeout-seconds: "60"
 EOF
 
-kubectl wait --for=condition=complete --timeout=600s job/default-domain -n knative-serving
+kubectl wait --for=condition=available --timeout=600s deployment/controller -n knative-serving

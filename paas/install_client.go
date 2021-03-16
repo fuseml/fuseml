@@ -98,6 +98,12 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	if domain.Value.(string) == "" {
 		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
 	}
+	if c.kubeClient.HasKnative() {
+		err = c.setDomainForKnative(domain.Value.(string))
+		if err != nil {
+			return err
+		}
+	}
 
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
@@ -171,67 +177,64 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 
 func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
-		if c.kubeClient.HasKnative() {
-			var err error
-			domain.Value, err = c.fetchKnativeDomain()
-			if err != nil {
-				return errors.New("couldn't set system domain")
-			}
-		} else {
-			ip := ""
-			s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-			defer s.Stop()
-			err := helpers.RunToSuccessWithTimeout(
-				func() error {
-					return c.fetchIP(&ip)
-				}, time.Duration(2)*time.Minute, 3*time.Second)
-			if err != nil {
-				if strings.Contains(err.Error(), "Timed out after") {
-					return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
-						"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
-						"Follow these steps to enable this ability\n" +
-						"https://github.com/fuseml/fuseml/blob/main/docs/install.md")
-				}
-				return err
-			}
-
-			if ip != "" {
-				domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
-			}
+		service := "traefik"
+		if c.kubeClient.HasIstio() {
+			service = "istio-ingressgateway"
 		}
+		ip := ""
+		s := c.ui.Progressf(fmt.Sprintf("Waiting for LoadBalancer IP on %s service.", service))
+		defer s.Stop()
+		err := helpers.RunToSuccessWithTimeout(
+			func() error {
+				return c.fetchIP(&ip, service)
+			}, time.Duration(2)*time.Minute, 3*time.Second)
+		if err != nil {
+			if strings.Contains(err.Error(), "Timed out after") {
+				return errors.New("Timed out waiting for LoadBalancer IP on " + service + " service.\n" +
+					"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
+					"Follow these steps to enable this ability\n" +
+					"https://github.com/fuseml/fuseml/blob/main/docs/install.md")
+			}
+			return err
+		}
+
+		if ip != "" {
+			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+		}
+
 	}
 
 	return nil
 }
 
-func (c *InstallClient) fetchIP(ip *string) error {
+func (c *InstallClient) fetchIP(ip *string, service string) error {
 	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
-		FieldSelector: "metadata.name=traefik",
+		FieldSelector: "metadata.name=" + service,
 	})
 	if len(serviceList.Items) == 0 {
-		return errors.New("couldn't find the traefik service")
+		return errors.New(fmt.Sprintf("couldn't find the %s service", service))
 	}
 	if err != nil {
 		return err
 	}
 	ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
 	if len(ingress) <= 0 {
-		return errors.New("ingress list is empty in traefik service")
+		return errors.New(fmt.Sprintf("ingress list is empty in %s service", service))
 	}
 	*ip = ingress[0].IP
 
 	return nil
 }
 
-func (c *InstallClient) fetchKnativeDomain() (string, error) {
+func (c *InstallClient) setDomainForKnative(domain string) error {
 	knDomainConfig, err := c.kubeClient.Kubectl.CoreV1().ConfigMaps("knative-serving").Get(context.Background(), "config-domain", metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return err
 	}
-	for domain := range knDomainConfig.Data {
-		if !strings.HasSuffix(domain, "example") {
-			return domain, nil
-		}
+	knDomainConfig.Data[domain] = ""
+	_, err = c.kubeClient.Kubectl.CoreV1().ConfigMaps("knative-serving").Update(context.Background(), knDomainConfig, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.New("could not update Knative domain configuration")
 	}
-	return "", err
+	return nil
 }
