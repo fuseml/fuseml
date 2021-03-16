@@ -171,7 +171,7 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 
 func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
-		if c.kubeClient.HasIstio() {
+		if c.kubeClient.HasKnative() {
 			var err error
 			domain.Value, err = c.fetchKnativeDomain()
 			if err != nil {
