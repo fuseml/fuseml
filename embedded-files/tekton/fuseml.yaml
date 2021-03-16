@@ -152,7 +152,7 @@ spec:
       when:
         - input: "$(tasks.get-serving-type.results.type)"
           operator: in
-          values: ["kfserving"]
+          values: ["kfserving", "seldon_sklearn"]
       taskRef:
         name: model-pkl-to-joblib
       runAfter:
@@ -170,6 +170,8 @@ spec:
           value: $(tasks.build.results.IMAGE-DIGEST)
         - name: MODEL-URI
           value: $(tasks.train.results.MODEL-URI)
+        - name: SERVING-TYPE
+          value: $(tasks.get-serving-type.results.type)
       workspaces:
         - name: source
           workspace: source
@@ -267,6 +269,7 @@ spec:
   params:
     - name: IMAGE-SHA
     - name: MODEL-URI
+    - name: SERVING-TYPE
   workspaces:
     - name: source
   steps:
@@ -275,8 +278,15 @@ spec:
       workingDir: "/workspace/source/app"
       script: |
         #!/bin/sh
-        sed "s#__MODEL_URI__#$(params.MODEL-URI)#g; s#__IMAGE_SHA__#$(params.IMAGE-SHA)#g; s#__AWS_ACCESS_KEY_ID__#${AWS_ACCESS_KEY_ID}#g; s#__AWS_SECRET_ACCESS_KEY__#${AWS_SECRET_ACCESS_KEY}#g" .fuseml/serve.yaml | kubectl apply -f -
-      #TODO: when kfserving installation is part of this tool, remove replacing AWS credentials and instead create a service account for kfserving as part of its installation
+        case "$(params.SERVING-TYPE)" in
+          "seldon_mlflow"|"seldon_sklearn"|"kfserving")
+            sed "s#__MODEL_URI__#$(params.MODEL-URI)#g; s#__AWS_ACCESS_KEY_ID__#${AWS_ACCESS_KEY_ID}#g; s#__AWS_SECRET_ACCESS_KEY__#${AWS_SECRET_ACCESS_KEY}#g" .fuseml/serve.yaml | kubectl apply -f -
+            #TODO: when kfserving installation is part of this tool, remove replacing AWS credentials and instead create a service account for kfserving as part of its installation
+          ;;
+          "deployment"|"knative")
+            sed "s#__MODEL_URI__#$(params.MODEL-URI)#g; s#__IMAGE_SHA__#$(params.IMAGE-SHA)#g;" .fuseml/serve.yaml | kubectl apply -f -
+          ;;
+        esac
       env:
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
