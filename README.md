@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/fuseml/fuseml/workflows/CI/badge.svg) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue)
 
-For an updated roadmap please click (here)[https://github.com/fuseml/fuseml/projects/1]
+For an updated roadmap please click [here](https://github.com/fuseml/fuseml/projects/1)
 
 Build your own custom MLOps orchestration workflows from composable automation recipes adapted to your favorite AI/ML tools, to get you from ML code to inference serving in production as fast as lighting a fuse.
 
