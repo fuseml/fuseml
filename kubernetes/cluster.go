@@ -125,9 +125,9 @@ func (c *Cluster) detectPlatform() {
 	}
 }
 
-// IsPodRunning returns a condition function that indicates whether the given pod is
-// currently running
-func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
+// IsPodRunningAndReady returns a condition function that indicates whether the given pod is
+// currently running and ready
+func (c *Cluster) IsPodRunningAndReady(podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
 		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
 		if err != nil {
@@ -143,6 +143,12 @@ func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 
 		for _, cont := range pod.Status.InitContainerStatuses {
 			if cont.State.Waiting != nil || cont.State.Running != nil {
+				return false, nil
+			}
+		}
+
+		for _, cont := range pod.Status.ContainerStatuses {
+			if cont.Ready != true {
 				return false, nil
 			}
 		}
@@ -170,10 +176,10 @@ func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	}
 }
 
-// Poll up to timeout seconds for pod to enter running state.
-// Returns an error if the pod never enters the running state.
+// Poll up to timeout seconds for pod to enter running and ready state.
+// Returns an error if the pod never enters such state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.IsPodRunningAndReady(podName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector
