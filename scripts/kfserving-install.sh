@@ -7,7 +7,6 @@ fi
 
 export KFSERVING_VERSION=v0.5.1
 
-curl https://raw.githubusercontent.com/kubeflow/kfserving/${KFSERVING_VERSION}/install/${KFSERVING_VERSION}/kfserving.yaml | \
-  sed 's/cluster-local/knative-local/' | kubectl apply -f -
+kubectl apply --filename scripts/kfserving/kfserving-${KFSERVING_VERSION}-v1beta1.yaml
 
 kubectl rollout status statefulset/kfserving-controller-manager -n kfserving-system
