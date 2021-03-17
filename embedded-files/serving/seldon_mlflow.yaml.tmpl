@@ -22,7 +22,19 @@ metadata:
 spec:
   name: "{{ .Org }}-{{ .AppName }}"
   predictors:
-  - spec:
+  - componentSpecs:
+    - spec:
+        containers:
+        - name: classifier
+          livenessProbe:
+            initialDelaySeconds: 120
+            failureThreshold: 200
+            periodSeconds: 5
+            successThreshold: 1
+            httpGet:
+              path: /health/ping
+              port: http
+              scheme: HTTP
     labels:
       fuseml/app-name: "{{ .AppName }}"
       fuseml/org: "{{ .Org }}"
