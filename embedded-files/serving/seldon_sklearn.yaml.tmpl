@@ -33,5 +33,9 @@ spec:
       modelUri: "__MODEL_URI__"
       envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
       name: classifier
+      parameters:
+        - name: method
+          type: STRING
+          value: predict
     name: "{{ .Org }}-{{ .AppName }}-mlflow-dag"
     replicas: 1
