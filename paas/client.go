@@ -170,8 +170,15 @@ func (c *FusemlClient) Apps() error {
 			if err != nil {
 				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
 			}
-			routes = strings.Join(ingRoutes, ", ")
+			routes = "https://" + strings.Join(ingRoutes, ", ")
 		}
+
+		inferenceUrl, err := c.getAppInferenceUrl(app.Name)
+		if err != nil {
+			return err
+		}
+		routes = fmt.Sprintf("%s/%s", routes, inferenceUrl)
+
 		msg = msg.WithTableRow(app.Name, status, routes)
 	}
 
@@ -375,10 +382,21 @@ func (c *FusemlClient) Push(app string, path string, serve string) error {
 		return errors.Wrap(err, "failed to determine default app route")
 	}
 
+	details.Info("get app inference url")
+	inferenceUrl, err := c.getAppInferenceUrl(app)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine app inference URL")
+	}
+
+	protocol := "http"
+	if !c.kubeClient.HasIstio() {
+		protocol = "https"
+	}
+
 	c.ui.Success().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.config.Org).
-		WithStringValue("Route", fmt.Sprintf("http://%s", route)).
+		WithStringValue("Route", fmt.Sprintf("%s://%s/%s", protocol, route, inferenceUrl)).
 		Msg("App is online.")
 
 	return nil
@@ -752,4 +770,13 @@ git clone --depth 1 "%s" .
 	c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
 	c.ui.Success().Msg("Application clone successful")
 	return tmpDir, nil
+}
+
+func (c *FusemlClient) getAppInferenceUrl(appName string) (string, error) {
+	appDeployment, err := c.kubeClient.Kubectl.AppsV1().Deployments(c.config.FusemlWorkloadsNamespace).
+		List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("fuseml/app-guid=%s.%s", c.config.Org, appName)})
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get inference url for app '%s'", appName)
+	}
+	return strings.ReplaceAll(appDeployment.Items[0].Labels["fuseml/infer-url"], ".", "/"), nil
 }

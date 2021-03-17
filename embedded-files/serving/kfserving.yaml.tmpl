@@ -28,9 +28,11 @@ metadata:
     fuseml/org: "{{ .Org }}"
     fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
     fuseml/serving: "kfserving"
+    fuseml/infer-url: "v2.models.{{ .Org }}-{{ .AppName }}.infer"
 spec:
   predictor:
     serviceAccountName: "{{ .Org }}-{{ .AppName }}-kfserving"
+    timeout: 60
     sklearn:
       protocolVersion: v2
       storageUri: "__MODEL_URI__"

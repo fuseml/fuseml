@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/infer-url: "invocations"
     spec:
       serviceAccountName: "{{ .ServiceAccountName }}"
       containers:
