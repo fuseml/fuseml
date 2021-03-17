@@ -58,8 +58,8 @@ contrib=contrib-title-conventional-commits
 # (e.g. title-must-not-contain-word).
 # regex=^US[0-9]*
 
-# [body-max-line-length]
-# line-length=72
+[body-max-line-length]
+line-length=120
 
 # [body-min-length]
 # min-length=5
