@@ -1,12 +1,15 @@
-# FuseML - Flexible Universal Service orchestration for Machine Learning
-
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/fuseml/fuseml/CI?style=for-the-badge&logo=suse) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen?style=for-the-badge&logo=suse) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue?style=for-the-badge&logo=suse)
 
-For an updated roadmap please click [here](https://github.com/fuseml/fuseml/projects/1)
+<h1 align=center>FuseML</h1>
+<h2 align=center>Flexible Universal SErvice orchestration for Machine Learning</h2>
+<p align="center">
+<img src="./docs/fuseml-logo.png" width="50%" height="50%"></center>
+</p>
+<p align="center">
+  For an updated roadmap please click <a href=https://github.com/fuseml/fuseml/projects/1>here</a>
+</p>
 
 Build your own custom MLOps orchestration workflows from composable automation recipes adapted to your favorite AI/ML tools, to get you from ML code to inference serving in production as fast as lighting a fuse.
-
-<img src="./docs/fuseml-logo.png" width="50%" height="50%">
 
 ## Overview
 
