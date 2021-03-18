@@ -53,6 +53,12 @@ test-acceptance-knative: embed_files
 test-acceptance-kfserving: embed_files
 	@./scripts/test-acceptance.sh -- -serve=kfserving
 
+test-acceptance-seldon_mlflow: embed_files
+	@./scripts/test-acceptance.sh -- -serve=seldon_mlflow
+
+test-acceptance-seldon_sklearn: embed_files
+	@./scripts/test-acceptance.sh -- -serve=seldon_sklearn
+
 generate:
 	go generate ./...
 
@@ -115,6 +121,9 @@ cert-manager-install:
 
 kfserving-install: knative-install cert-manager-install
 	@./scripts/kfserving-install.sh
+
+seldon-install: istio-install
+	@./scripts/seldon-operator-install.sh
 
 ########################################################################
 # Kube dev environments

@@ -142,7 +142,7 @@ func (c *FusemlClient) Apps() error {
 		}
 
 		var routes string
-		if c.kubeClient.HasIstio() {
+		if c.kubeClient.HasKnative() {
 			details.Info("kube get knative services", "App", app.Name)
 
 			knc, err := knversionedclient.NewForConfig(c.kubeClient.RestConfig)
@@ -156,12 +156,23 @@ func (c *FusemlClient) Apps() error {
 				return errors.Wrap(err, "failed to get knative service")
 			}
 			if len(knService.Items) < 1 {
+				// knative is deployed, but maybe not used for current app - show the default route instead
+				defaultRoute, err := c.appDefaultRoute(app.Name)
+				if err != nil {
+					return errors.Wrapf(err, "failed to get for app '%s'", app.Name)
+				}
+				routes = defaultRoute
+			} else {
+				// FIXME: KN services created by KFServing has -predictor-default appended into its URL, this code is hardcoded to replace it for now
+				// but needs a better approach for this
+				routes = strings.ReplaceAll(knService.Items[0].Status.URL.String(), "-predictor-default.", ".")
+			}
+		} else if c.kubeClient.HasIstio() {
+			defaultRoute, err := c.appDefaultRoute(app.Name)
+			if err != nil {
 				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
 			}
-
-			// FIXME: KN services created by KFServing has -predictor-default appended into its URL, this code is hardcoded to replace it for now
-			// but needs a better approach for this
-			routes = strings.ReplaceAll(knService.Items[0].Status.URL.String(), "-predictor-default.", ".")
+			routes = defaultRoute
 		} else {
 			details.Info("kube get ingress", "App", app.Name)
 			ingRoutes, err := c.kubeClient.ListIngressRoutes(

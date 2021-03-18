@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        ingress: ["traefik", "knative", "kfserving"]
+        serve: ["traefik", "knative", "kfserving", "seldon_mlflow", "seldon_sklearn"]
       fail-fast: false
 
     steps:
@@ -113,4 +113,4 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          make test-acceptance-${{ matrix.ingress }}
+          make test-acceptance-${{ matrix.serve }}
