@@ -1,3 +1,7 @@
+# Tekton components version
+TEKTON_PIPELINE_VERSION=v0.22.0
+TEKTON_TRIGGERS_VERSION=v0.12.1
+TEKTON_DASHBOARD_VERSION=v0.15.0
 
 ########################################################################
 ## Development
@@ -81,9 +85,9 @@ update_charts: update_registry update_mlflow
 
 update_tekton:
 	mkdir -p embedded-files/tekton
-	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton/pipeline-v0.19.0.yaml
-	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O embedded-files/tekton/triggers-v0.11.1.yaml
-	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
+	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/${TEKTON_PIPELINE_VERSION}/release.yaml -O embedded-files/tekton/pipeline-${TEKTON_PIPELINE_VERSION}.yaml
+	wget https://storage.googleapis.com/tekton-releases/triggers/previous/${TEKTON_TRIGGERS_VERSION}/release.yaml -O embedded-files/tekton/triggers-${TEKTON_TRIGGERS_VERSION}.yaml
+	wget https://github.com/tektoncd/dashboard/releases/download/${TEKTON_DASHBOARD_VERSION}/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-${TEKTON_DASHBOARD_VERSION}.yaml
 
 embed_files: tools
 	statik -m -f -src=./embedded-files

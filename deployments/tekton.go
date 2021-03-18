@@ -27,14 +27,14 @@ type Tekton struct {
 }
 
 const (
-	TektonDeploymentID            = "tekton"
-	tektonNamespace               = "tekton-pipelines"
-	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
-	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
-	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
-	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.11.1.yaml"
-	tektonTriggersYamlPath        = "tekton/triggers.yaml"
-	tektonStagingYamlPath         = "tekton/staging.yaml"
+	TektonDeploymentID      = "tekton"
+	tektonNamespace         = "tekton-pipelines"
+	tektonPipelineYamlPath  = "tekton/pipeline-v0.22.0.yaml"
+	tektonTriggersYamlPath  = "tekton/triggers-v0.12.1.yaml"
+	tektonDashboardYamlPath = "tekton/dashboard-v0.15.0.yaml"
+	tektonAdminRoleYamlPath = "tekton/admin-role.yaml"
+	tektonFusemlYamlPath    = "tekton/fuseml.yaml"
+	tektonKanikoYamlPath    = "tekton/kaniko.yaml"
 )
 
 func (k *Tekton) ID() string {
@@ -51,7 +51,7 @@ func (k *Tekton) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 
 func (k Tekton) Describe() string {
 	return emoji.Sprintf(":cloud:Tekton pipeline: %s\n:cloud:Tekton dashboard: %s\n:cloud:Tekton triggers: %s\n",
-		tektonPipelineReleaseYamlPath, tektonDashboardYamlPath, tektonTriggersReleaseYamlPath)
+		tektonPipelineYamlPath, tektonDashboardYamlPath, tektonTriggersYamlPath)
 }
 
 // Delete removes Tekton from kubernetes cluster
@@ -73,11 +73,11 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersReleaseYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersYamlPath, out))
 	}
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineYamlPath, out))
 	}
 
 	message := "Deleting Tekton namespace " + tektonNamespace
@@ -102,11 +102,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	// 	action = "upgrade"
 	// }
 
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineReleaseYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineYamlPath, out))
 	}
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonTriggersReleaseYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonTriggersYamlPath, out))
 	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
@@ -163,10 +163,10 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Installing staging pipelines and triggers"
+	message = "Installing FuseML pipelines and triggers"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
+			return helpers.KubectlApplyEmbeddedYaml(tektonFusemlYamlPath)
 		},
 	)
 	if err != nil {
@@ -206,10 +206,10 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Applying tekton staging resources"
+	message = "Applying tekton Kaniko resources"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return applyTektonStaging(c, ui)
+			return applyTektonKaniko(c, ui)
 		},
 	)
 	if err != nil {
@@ -261,7 +261,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 
 func (k Tekton) GetVersion() string {
 	return fmt.Sprintf("pipelines: %s, triggers %s, dashboard: %s",
-		tektonPipelineReleaseYamlPath, tektonTriggersReleaseYamlPath, tektonDashboardYamlPath)
+		tektonPipelineYamlPath, tektonTriggersYamlPath, tektonDashboardYamlPath)
 }
 
 func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
@@ -314,15 +314,15 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
 }
 
-func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
+func applyTektonKaniko(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get registry CA from fuseml-workloads namespace")
 	}
 
-	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
+	yamlPathOnDisk, err := helpers.ExtractFile(tektonKanikoYamlPath)
 	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
+		return "", errors.New("Failed to extract embedded file: " + tektonKanikoYamlPath + " - " + err.Error())
 	}
 	defer os.Remove(yamlPathOnDisk)
 
