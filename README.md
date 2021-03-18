@@ -1,4 +1,4 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/fuseml/fuseml/CI?style=for-the-badge&logo=suse) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen?style=for-the-badge&logo=suse) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue?style=for-the-badge&logo=suse)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/fuseml/fuseml/CI?style=for-the-badge&logo=suse) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen?style=for-the-badge&logo=suse) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue?style=for-the-badge&logo=suse) ![GitHub contributors](https://img.shields.io/github/contributors/fuseml/fuseml?style=for-the-badge&logo=suse) ![GitHub last commit](https://img.shields.io/github/last-commit/fuseml/fuseml?style=for-the-badge&logo=suse)
 
 <h1 align=center>FuseML</h1>
 <h2 align=center>Flexible Universal SErvice orchestration for Machine Learning</h2>
