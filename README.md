@@ -3,7 +3,7 @@
 <h1 align=center>FuseML</h1>
 <h2 align=center>Flexible Universal SErvice orchestration for Machine Learning</h2>
 <p align="center">
-<img src="./docs/fuseml-logo.png" width="50%" height="50%"></center>
+<img src="./docs/fuseml-logo.png" width="30%" height="30%"></center>
 </p>
 <p align="center">
   For an updated roadmap please click <a href=https://github.com/fuseml/fuseml/projects/1>here</a>
