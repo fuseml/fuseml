@@ -533,8 +533,8 @@ func (c *FusemlClient) prepareCode(name, org, appDir string, serve string) (stri
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	dockerfileDef := fmt.Sprintf(`
-FROM ghcr.io/fuseml/mlflow-runner:1.14.0
+	dockerfileDef := `
+FROM ghcr.io/fuseml/mlflow:1.14.1
 
 COPY conda.yaml /env/
 RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
@@ -542,7 +542,7 @@ RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
 
 ENV BASH_ENV /root/.bashrc
 RUN conda env create -f /env/conda.yaml
-	`)
+	`
 
 	route, err := c.appDefaultRoute(name)
 	if err != nil {
