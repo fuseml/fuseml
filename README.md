@@ -1,6 +1,6 @@
 # FuseML - Flexible Universal Service orchestration for Machine Learning
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/fuseml/fuseml/CI?style=for-the-badge) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen?style=for-the-badge&logo=appveyor) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue?style=for-the-badge&logo=appveyor)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/fuseml/fuseml/CI?style=for-the-badge&logo=suse) ![Release](https://img.shields.io/badge/release-pre--alpha-brightgreen?style=for-the-badge&logo=suse) ![Roadmap](https://img.shields.io/badge/roadmap-on--track-blue?style=for-the-badge&logo=suse)
 
 For an updated roadmap please click [here](https://github.com/fuseml/fuseml/projects/1)
 
