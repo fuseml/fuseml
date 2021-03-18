@@ -239,6 +239,7 @@ func (c *FusemlClient) Delete(app string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed cloning app repository")
 	}
+	defer os.RemoveAll(appDir)
 
 	details.Info("deleting app workload")
 	out, err := helpers.Kubectl(fmt.Sprintf("delete -n %s --filename %s/.fuseml/serve.yaml", c.config.FusemlWorkloadsNamespace, appDir))
@@ -600,6 +601,8 @@ RUN conda env create -f /env/conda.yaml
 func (c *FusemlClient) gitPush(name, tmpDir string) error {
 	c.ui.Normal().Msg("Pushing application code ...")
 
+	defer os.RemoveAll(tmpDir)
+
 	giteaURL, err := c.giteaResolver.GetGiteaURL()
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve gitea host")
@@ -778,5 +781,9 @@ func (c *FusemlClient) getAppInferenceUrl(appName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get inference url for app '%s'", appName)
 	}
+	if len(appDeployment.Items) == 0 {
+		return "", errors.New(fmt.Sprintf("No deployment of application %s.%s found", c.config.Org, appName))
+	}
+
 	return strings.ReplaceAll(appDeployment.Items[0].Labels["fuseml/infer-url"], ".", "/"), nil
 }
