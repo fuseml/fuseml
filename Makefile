@@ -2,9 +2,9 @@
 ########################################################################
 ## Development
 
-build: tools embed_files lint build-local
+build: embed_files lint build-local
 
-build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -37,22 +37,22 @@ compress:
 	upx --brute -1 ./dist/fuseml-windows-amd64
 	upx --brute -1 ./dist/fuseml-darwin-amd64
 
-test:
+test: embed_files
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
-test-acceptance-traefik:
+test-acceptance-traefik: embed_files
 	@./scripts/test-acceptance.sh -- -serve=deployment
 
-test-acceptance-knative:
+test-acceptance-knative: embed_files
 	@./scripts/test-acceptance.sh -- -serve=knative
 
-test-acceptance-kfserving:
+test-acceptance-kfserving: embed_files
 	@./scripts/test-acceptance.sh -- -serve=kfserving
 
 generate:
 	go generate ./...
 
-lint:	fmt vet tidy
+lint:	embed_files fmt vet tidy
 
 vet:
 	go vet ./...
@@ -85,7 +85,7 @@ update_tekton:
 	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O embedded-files/tekton/triggers-v0.11.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
 
-embed_files:
+embed_files: tools
 	statik -m -f -src=./embedded-files
 
 help:
