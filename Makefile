@@ -8,7 +8,7 @@ TEKTON_DASHBOARD_VERSION=v0.15.0
 
 build: embed_files lint build-local
 
-build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-darwin-amd64 build-darwin-arm64 build-windows
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -25,14 +25,14 @@ build-arm64: lint
 build-amd64: lint
 	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-amd64
 
-build-windows: lint
-	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-windows-amd64
-
-build-darwin: lint
+build-darwin-amd64: lint
 	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-darwin-amd64
 
 build-darwin-arm64: lint
 	GOARCH="arm64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-darwin-arm64
+
+build-windows: lint
+	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-windows-amd64
 
 compress:
 	upx --brute -1 ./dist/fuseml-linux-arm32
