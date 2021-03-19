@@ -36,8 +36,6 @@ spec:
             - -c
             - |
               mlflow models serve --no-conda -h 0.0.0.0 -p 8080 -m ${MODEL_URI}
-          ports:
-            - containerPort: 8080
           env:
             - name: MLFLOW_TRACKING_URI
               value: "http://mlflow/"
@@ -55,3 +53,18 @@ spec:
                   name: mlflow-minio
             - name: MODEL_URI
               value: "__MODEL_URI__"
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
