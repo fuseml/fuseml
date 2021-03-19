@@ -96,20 +96,17 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 }
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-
-	// action := "install"
-	// if upgrade {
-	// 	action = "upgrade"
-	// }
-
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineYamlPath, out))
 	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonTriggersYamlPath, out))
 	}
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonDashboardYamlPath, out))
 	}
 
 	err := c.LabelNamespace(tektonNamespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
@@ -143,48 +140,21 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 	}
 
-	message := "Starting tekton triggers webhook pod"
+	for _, c := range []string{"pipelines", "triggers", "dashboard"} {
+		message := fmt.Sprintf("Starting tekton %s pods", c)
+		out, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.Kubectl(fmt.Sprintf("wait --for=condition=Ready --timeout=%ds -n %s --selector=app.kubernetes.io/part-of=tekton-%s pod",
+					k.Timeout, tektonNamespace, c))
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+	}
+
+	message := "Creating registry certificates in fuseml-workloads"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Starting tekton pipelines webhook pod"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Installing FuseML pipelines and triggers"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonFusemlYamlPath)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Installing the tekton dashboard"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Creating registry certificates in fuseml-workloads"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
@@ -200,6 +170,16 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
 
 			return fmt.Sprintf("%s\n%s", out1, out2), err
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Installing FuseML pipelines and triggers"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(tektonFusemlYamlPath)
 		},
 	)
 	if err != nil {
@@ -245,13 +225,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, WorkloadsDeploymentID, "eventlistener=mlflow-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Tekton event listener deployment to come up")
-	}
-
-	if err := c.WaitUntilPodBySelectorExist(ui, tektonNamespace, "app.kubernetes.io/name=dashboard,app.kubernetes.io/part-of=tekton-dashboard", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton dashboard deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ui, tektonNamespace, "app.kubernetes.io/name=dashboard,app.kubernetes.io/part-of=tekton-dashboard", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton dashboard deployment to come up")
 	}
 
 	ui.Success().Msg("Tekton deployed")
