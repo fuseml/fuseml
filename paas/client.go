@@ -691,13 +691,32 @@ func (c *FusemlClient) logs(name string) (context.CancelFunc, error) {
 }
 
 func (c *FusemlClient) waitForApp(org, name string) error {
+
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
-	err := c.kubeClient.WaitUntilPodBySelectorExist(
+
+	err := c.kubeClient.WaitUntilPipelineRunExists(
+		c.ui, c.config.FusemlWorkloadsNamespace,
+		fmt.Sprintf("fuseml/app-name=%s", name),
+		60)
+	if err != nil {
+		return errors.Wrap(err, "PipelineRun was not created after 60 seconds")
+	}
+
+	err = c.kubeClient.WaitForPipelineRunSuccess(
+		c.ui, c.config.FusemlWorkloadsNamespace,
+		fmt.Sprintf("fuseml/app-name=%s", name),
+		600)
+
+	if err != nil {
+		return errors.Wrap(err, "PipelineRun did not succeed in 600 seconds")
+	}
+
+	err = c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.FusemlWorkloadsNamespace,
 		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
-		750)
+		60)
 	if err != nil {
-		return errors.Wrap(err, "waiting for app to be created failed")
+		return errors.Wrap(err, "Application was not created")
 	}
 
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
@@ -708,7 +727,7 @@ func (c *FusemlClient) waitForApp(org, name string) error {
 		300)
 
 	if err != nil {
-		return errors.Wrap(err, "waiting for app to come online failed")
+		return errors.Wrap(err, "Application did not start in 300 seconds")
 	}
 
 	return nil

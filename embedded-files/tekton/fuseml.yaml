@@ -20,6 +20,8 @@ spec:
       kind: PipelineRun
       metadata:
         generateName: fuseml-mlflow-$(tt.params.appname)-
+        labels:
+          fuseml/app-name: $(tt.params.appname)
       spec:
         serviceAccountName: staging-triggers-admin
         serviceAccountNames:
