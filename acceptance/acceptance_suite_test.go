@@ -2,11 +2,13 @@ package acceptance_test
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -288,4 +290,46 @@ func checkDependencies() error {
 	}
 
 	return errors.New("Please check your PATH, some of our dependencies were not found")
+}
+
+func predictMLFlowApp(url string, serve string) string {
+	commonData := "[[12.8, 0.029, 0.48, 0.98, 6.2, 29, 7.33, 1.2, 0.39, 90, 0.86]]"
+	var data []byte
+	switch serve {
+	case "knative", "deployment":
+		data = []byte(fmt.Sprintf(`{
+			"columns":["alcohol", "chlorides", "citric acid", "density", "fixed acidity",
+				"free sulfur dioxide", "pH", "residual sugar", "sulphates", "total sulfur dioxide",
+				"volatile acidity"], "data": %s
+		}`, commonData))
+	case "kfserving":
+		data = []byte(fmt.Sprintf(`{
+			"inputs": [{"name": "input-0", "shape": [1, 11], "datatype": "FP32", "data": %s}]
+		}`, commonData))
+	case "seldon_sklearn", "seldon_mlflow":
+		data = []byte(fmt.Sprintf(`{"data": {"ndarray": %s}}`, commonData))
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("format", "pandas-split")
+	req.Header.Set("Content-Type", "application/json")
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	if resp.Status != "200 OK" {
+		panic(fmt.Sprintf("expected 200 OK, got %q", resp.Status))
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	return string(body)
 }

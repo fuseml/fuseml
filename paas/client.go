@@ -161,7 +161,7 @@ func (c *FusemlClient) Apps() error {
 				if err != nil {
 					return errors.Wrapf(err, "failed to get for app '%s'", app.Name)
 				}
-				routes = defaultRoute
+				routes = "http://" + defaultRoute
 			} else {
 				// FIXME: KN services created by KFServing has -predictor-default appended into its URL, this code is hardcoded to replace it for now
 				// but needs a better approach for this
@@ -172,7 +172,7 @@ func (c *FusemlClient) Apps() error {
 			if err != nil {
 				return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
 			}
-			routes = defaultRoute
+			routes = "http://" + defaultRoute
 		} else {
 			details.Info("kube get ingress", "App", app.Name)
 			ingRoutes, err := c.kubeClient.ListIngressRoutes(
@@ -815,5 +815,12 @@ func (c *FusemlClient) getAppInferenceUrl(appName string) (string, error) {
 		return "", errors.New(fmt.Sprintf("No deployment of application %s.%s found", c.config.Org, appName))
 	}
 
-	return strings.ReplaceAll(appDeployment.Items[0].Labels["fuseml/infer-url"], ".", "/"), nil
+	// Labels have the limitations of 63 characters, to overcome that use '-NAME-' on the label to represent the deployment name
+	// that is also used on the URL for some inference services.
+	inferUrl := strings.ReplaceAll(appDeployment.Items[0].Labels["fuseml/infer-url"], "-NAME-", fmt.Sprintf("%s-%s", c.config.Org, appName))
+
+	// Labels does not allow '/' characters, in that way we are replacing '/' with '_' on the template, so
+	// we need to replace '_' back to '/' here. This is not a solution, but a temporary workaround that will break
+	// as soon as a url has '_' on it.
+	return strings.ReplaceAll(inferUrl, "_", "/"), nil
 }

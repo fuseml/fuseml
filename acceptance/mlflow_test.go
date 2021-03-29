@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -25,7 +26,7 @@ var _ = Describe("MLflow Model", func() {
 			appName = "mlflow-" + strconv.Itoa(int(time.Now().Nanosecond()))
 		})
 
-		It("pushes and deletes an mlflow model", func() {
+		It("pushes predicts and deletes an mlflow model", func() {
 			By("pushing the mlflow model")
 			currentDir, err := os.Getwd()
 			time.Sleep(10 * time.Second)
@@ -42,6 +43,12 @@ var _ = Describe("MLflow Model", func() {
 				routeRegex = `.*\|.*[0,1]\/[0,1].*\|.*`
 			}
 			Expect(out).To(MatchRegexp(appName + routeRegex))
+
+			By("predict")
+			re := regexp.MustCompile("http.*[a-z]")
+			url := re.FindString(out)
+			predict := predictMLFlowApp(url, serve)
+			Expect(predict).To(MatchRegexp(`\[6.48634480\d+\]`))
 
 			By("deleting the mlflow model")
 			out, err = Fuseml("delete "+appName, "")

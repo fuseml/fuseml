@@ -18,24 +18,24 @@ metadata:
     fuseml/app-name: "{{ .AppName }}"
     fuseml/org: "{{ .Org }}"
     fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-    fuseml/serving: "seldon_sklearn"
 spec:
   name: "{{ .Org }}-{{ .AppName }}"
   predictors:
-  - spec:
-    labels:
-      fuseml/app-name: "{{ .AppName }}"
-      fuseml/org: "{{ .Org }}"
-      fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-    graph:
-      children: []
-      implementation: SKLEARN_SERVER
-      modelUri: "__MODEL_URI__"
-      envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
-      name: classifier
-      parameters:
-        - name: method
-          type: STRING
-          value: predict
-    name: "{{ .Org }}-{{ .AppName }}-mlflow-dag"
-    replicas: 1
+    - name: "{{ .Org }}-{{ .AppName }}-pred"
+      labels:
+        fuseml/app-name: "{{ .AppName }}"
+        fuseml/org: "{{ .Org }}"
+        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/serving: "seldon_sklearn"
+        fuseml/infer-url: "seldon_{{ .ServiceAccountName }}_-NAME-_api_v1.0_predictions"
+      replicas: 1
+      graph:
+        children: []
+        implementation: SKLEARN_SERVER
+        modelUri: "__MODEL_URI__"
+        envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
+        name: classifier
+        parameters:
+          - name: method
+            type: STRING
+            value: predict

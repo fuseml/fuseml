@@ -18,32 +18,33 @@ metadata:
     fuseml/app-name: "{{ .AppName }}"
     fuseml/org: "{{ .Org }}"
     fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-    fuseml/serving: "seldon_mlflow"
 spec:
   name: "{{ .Org }}-{{ .AppName }}"
   predictors:
-  - componentSpecs:
-    - spec:
-        containers:
-        - name: classifier
-          livenessProbe:
-            initialDelaySeconds: 120
-            failureThreshold: 200
-            periodSeconds: 5
-            successThreshold: 1
-            httpGet:
-              path: /health/ping
-              port: http
-              scheme: HTTP
-    labels:
-      fuseml/app-name: "{{ .AppName }}"
-      fuseml/org: "{{ .Org }}"
-      fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
-    graph:
-      children: []
-      implementation: MLFLOW_SERVER
-      modelUri: "__MODEL_URI__"
-      envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
-      name: classifier
-    name: "{{ .Org }}-{{ .AppName }}-mlflow-dag"
-    replicas: 1
+    - name: "{{ .Org }}-{{ .AppName }}-pred"
+      labels:
+        fuseml/app-name: "{{ .AppName }}"
+        fuseml/org: "{{ .Org }}"
+        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/serving: "seldon_mlflow"
+        fuseml/infer-url: "seldon_{{ .ServiceAccountName }}_-NAME-_api_v1.0_predictions"
+      replicas: 1
+      graph:
+        children: []
+        implementation: MLFLOW_SERVER
+        modelUri: "__MODEL_URI__"
+        envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
+        name: classifier
+      componentSpecs:
+        - spec:
+            containers:
+            - name: classifier
+              livenessProbe:
+                initialDelaySeconds: 120
+                failureThreshold: 200
+                periodSeconds: 5
+                successThreshold: 1
+                httpGet:
+                  path: /health/ping
+                  port: http
+                  scheme: HTTP
