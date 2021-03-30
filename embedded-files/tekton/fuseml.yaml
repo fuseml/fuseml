@@ -281,7 +281,7 @@ spec:
       script: |
         #!/bin/sh
         case "$(params.SERVING-TYPE)" in
-          "seldon_mlflow"|"seldon_sklearn"|"kfserving")
+          "seldon_mlflow"|"seldon_sklearn"|"kfserving"|"seldon_tensorflow")
             sed "s#__MODEL_URI__#$(params.MODEL-URI)#g; s#__AWS_ACCESS_KEY_ID__#${AWS_ACCESS_KEY_ID}#g; s#__AWS_SECRET_ACCESS_KEY__#${AWS_SECRET_ACCESS_KEY}#g" .fuseml/serve.yaml | kubectl apply -f -
             #TODO: when kfserving installation is part of this tool, remove replacing AWS credentials and instead create a service account for kfserving as part of its installation
           ;;

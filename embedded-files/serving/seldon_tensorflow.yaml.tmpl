@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}-init-container-secret"
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: __AWS_ACCESS_KEY_ID__
+  AWS_SECRET_ACCESS_KEY: __AWS_SECRET_ACCESS_KEY__
+  AWS_ENDPOINT_URL: http://mlflow-minio:9000/
+  USE_SSL: "false"
+---
+apiVersion: machinelearning.seldon.io/v1alpha2
+kind: SeldonDeployment
+metadata:
+  name: "{{ .Org }}-{{ .AppName }}"
+  labels:
+    fuseml/app-name: "{{ .AppName }}"
+    fuseml/org: "{{ .Org }}"
+    fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+spec:
+  name: "{{ .Org }}-{{ .AppName }}"
+  predictors:
+    - name: "{{ .Org }}-{{ .AppName }}-pred"
+      labels:
+        fuseml/app-name: "{{ .AppName }}"
+        fuseml/org: "{{ .Org }}"
+        fuseml/app-guid: "{{ .Org }}.{{ .AppName }}"
+        fuseml/serving: "seldon_tensorflow"
+        fuseml/infer-url: "seldon_{{ .ServiceAccountName }}_-NAME-_api_v1.0_predictions"
+      replicas: 1
+      graph:
+        children: []
+        implementation: TENSORFLOW_SERVER
+        modelUri: "__MODEL_URI__"
+        envSecretRefName: "{{ .Org }}-{{ .AppName }}-init-container-secret"
+        name: classifier
+        parameters:
+          - name: model_name
+            type: STRING
+            value: classifier
