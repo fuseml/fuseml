@@ -183,8 +183,10 @@ func (c *Cluster) PipelineRunSucceeded(pipelineRunClient tektonv1beta.PipelineRu
 		}
 		c := pr.Status.GetCondition(apis.ConditionSucceeded)
 		if c != nil {
-			if c.Status == v1.ConditionTrue || c.Status == v1.ConditionFalse {
+			if c.Status == v1.ConditionTrue {
 				return true, nil
+			} else if c.Status == v1.ConditionFalse {
+				return true, fmt.Errorf("PipelineRun has failed. Check the logs of TaskRuns.")
 			} else if c.Status == v1.ConditionUnknown && (c.Reason == "Running" || c.Reason == "Pending") {
 				return false, nil
 			}
