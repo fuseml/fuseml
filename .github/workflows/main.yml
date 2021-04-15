@@ -3,20 +3,8 @@ name: CI
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      - docs/**
-      - README.md
-      - LICENSE
-      - .gitlint
-      - .gitignore
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - docs/**
-      - README.md
-      - LICENSE
-      - .gitlint
-      - .gitignore
 
 jobs:
   lint:
