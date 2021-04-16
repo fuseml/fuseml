@@ -574,9 +574,10 @@ RUN conda env create -f /env/conda.yaml
 
 	servingType := c.getServingWorkloadType(serve)
 
-	tmplPathOnDisk, err := helpers.ExtractFile(`serving/` + servingType + `.yaml.tmpl`)
+	servingFile := "serving/" + servingType + ".yaml.tmpl"
+	tmplPathOnDisk, err := helpers.ExtractFile(servingFile)
 	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + tmplPathOnDisk + " - " + err.Error())
+		return "", errors.New("Failed to extract embedded file: " + servingFile + " - " + err.Error())
 	}
 	defer os.Remove(tmplPathOnDisk)
 
