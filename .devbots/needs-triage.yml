@@ -1,3 +1,4 @@
 enabled: true
 label: "triage-needed"
 delay: 5
+skip_when_has_labels: ["in progress", "mvp", "current_sprint"]
