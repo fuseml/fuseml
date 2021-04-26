@@ -55,38 +55,5 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error installing FuseML")
 	}
 
-	// Installation complete. Run `create-org`
-
-	fuseml_client, fuseml_cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
-	defer func() {
-		if fuseml_cleanup != nil {
-			fuseml_cleanup()
-		}
-	}()
-
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	// Post Installation Tasks:
-	// - Create and target a default organization, so that the
-	//   user can immediately begin to push applications.
-	//
-	// Dev Note: The targeting is done to ensure that a fuseml
-	// config left over from a previous installation will contain
-	// a valid organization. Without it may contain the name of a
-	// now invalid organization from said previous install. This
-	// then breaks push and other commands in non-obvious ways.
-
-	err = fuseml_client.CreateOrg(DefaultOrganization)
-	if err != nil {
-		return errors.Wrap(err, "error creating org")
-	}
-
-	err = fuseml_client.Target(DefaultOrganization)
-	if err != nil {
-		return errors.Wrap(err, "failed to set target")
-	}
-
 	return nil
 }

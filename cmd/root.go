@@ -57,8 +57,6 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdUninstall)
 	rootCmd.AddCommand(client.CmdInfo)
-	rootCmd.AddCommand(client.CmdOrgs)
-	rootCmd.AddCommand(client.CmdCreateOrg)
 	rootCmd.AddCommand(client.CmdDeleteApp)
 	rootCmd.AddCommand(client.CmdApps)
 	rootCmd.AddCommand(client.CmdTarget)

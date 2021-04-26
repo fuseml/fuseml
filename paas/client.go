@@ -3,19 +3,16 @@ package paas
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"code.gitea.io/sdk/gitea"
-	"github.com/fuseml/fuseml/cli/deployments"
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/kubernetes/tailer"
@@ -23,7 +20,6 @@ import (
 	paasgitea "github.com/fuseml/fuseml/cli/paas/gitea"
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/go-logr/logr"
-	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -188,43 +184,6 @@ func (c *FusemlClient) Apps() error {
 	return nil
 }
 
-// CreateOrg creates an Org in gitea
-func (c *FusemlClient) CreateOrg(org string) error {
-	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	c.ui.Note().
-		WithStringValue("Name", org).
-		Msg("Creating organization...")
-
-	details.Info("validate")
-	details.Info("gitea get-org")
-	_, resp, err := c.giteaClient.GetOrg(org)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get org request")
-	}
-
-	if resp.StatusCode == 200 {
-		c.ui.Exclamation().Msg("Organization already exists.")
-		return nil
-	}
-
-	details.Info("gitea create-org")
-	_, _, err = c.giteaClient.CreateOrg(gitea.CreateOrgOption{
-		Name: org,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create org")
-	}
-
-	c.ui.Success().Msg("Organization created.")
-
-	return nil
-}
-
 // Delete deletes an app
 func (c *FusemlClient) Delete(app string) error {
 	log := c.Log.WithName("Delete").WithValues("Application", app)
@@ -257,127 +216,6 @@ func (c *FusemlClient) Delete(app string) error {
 	c.ui.Normal().Msg("Deleted app code repository.")
 
 	c.ui.Success().Msg("Application deleted.")
-
-	return nil
-}
-
-// OrgsMatching returns all Fuseml orgs having the specified prefix
-// in their name
-func (c *FusemlClient) OrgsMatching(prefix string) []string {
-	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	result := []string{}
-
-	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
-	if err != nil {
-		return result
-	}
-
-	for _, org := range orgs {
-		details.Info("Found", "Name", org.UserName)
-
-		if strings.HasPrefix(org.UserName, prefix) {
-			details.Info("Matched", "Name", org.UserName)
-			result = append(result, org.UserName)
-		}
-	}
-
-	return result
-}
-
-// Orgs get a list of all orgs in gitea
-func (c *FusemlClient) Orgs() error {
-	log := c.Log.WithName("Orgs")
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	c.ui.Note().Msg("Listing organizations")
-
-	details.Info("gitea admin list orgs")
-	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to list orgs")
-	}
-
-	msg := c.ui.Success().WithTable("Name")
-
-	for _, org := range orgs {
-		msg = msg.WithTableRow(org.UserName)
-	}
-
-	msg.Msg("Fuseml Organizations:")
-
-	return nil
-}
-
-// Target targets an org in gitea
-func (c *FusemlClient) Target(org string) error {
-	log := c.Log.WithName("Target").WithValues("Organization", org)
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	if org == "" {
-		details.Info("query config")
-		c.ui.Success().
-			WithStringValue("Currently targeted organization", c.config.Org).
-			Msg("")
-		return nil
-	}
-
-	c.ui.Note().
-		WithStringValue("Name", org).
-		Msg("Targeting organization...")
-
-	details.Info("validate")
-	err := c.ensureGoodOrg(org, "Unable to target.")
-	if err != nil {
-		return err
-	}
-
-	details.Info("set config")
-	c.config.Org = org
-	err = c.config.Save()
-	if err != nil {
-		return errors.Wrap(err, "failed to save configuration")
-	}
-
-	c.ui.Success().Msg("Organization targeted.")
-
-	return nil
-}
-
-func (c *FusemlClient) check() {
-	c.giteaClient.GetMyUserInfo()
-}
-
-func (c *FusemlClient) createRepo(name string) error {
-	_, resp, err := c.giteaClient.GetRepo(c.config.Org, name)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get repo request")
-	}
-
-	if resp.StatusCode == 200 {
-		c.ui.Note().Msg("Application already exists. Updating.")
-		return nil
-	}
-
-	_, _, err = c.giteaClient.CreateOrgRepo(c.config.Org, gitea.CreateRepoOption{
-		Name:          name,
-		AutoInit:      true,
-		Private:       true,
-		DefaultBranch: "main",
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create application")
-	}
-
-	c.ui.Success().Msg("Application Repository created.")
 
 	return nil
 }
