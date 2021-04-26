@@ -30,16 +30,6 @@ import (
 	knversionedclient "knative.dev/serving/pkg/client/clientset/versioned"
 )
 
-var (
-	// HookSecret should be generated
-	// TODO: generate this and put it in a secret
-	HookSecret = "74tZTBHkhjMT5Klj6Ik6PqmM"
-
-	// StagingEventListenerURL should not exist
-	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-mlflow-listener.fuseml-workloads:8080"
-)
-
 // FusemlClient provides functionality for talking to a
 // Fuseml installation on Kubernetes
 type FusemlClient struct {
@@ -324,96 +314,6 @@ func (c *FusemlClient) Orgs() error {
 	return nil
 }
 
-// Push pushes an app
-func (c *FusemlClient) Push(app string, path string, serve string) error {
-	log := c.Log.
-		WithName("Push").
-		WithValues("Name", app,
-			"Organization", c.config.Org,
-			"Sources", path)
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	c.ui.Note().
-		WithStringValue("Name", app).
-		WithStringValue("Sources", path).
-		WithStringValue("Organization", c.config.Org).
-		Msg("About to push an application with given name and sources into the specified organization")
-
-	c.ui.Exclamation().
-		Timeout(5 * time.Second).
-		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
-
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.config.Org, "Unable to push.")
-	if err != nil {
-		return err
-	}
-
-	details.Info("create repo")
-	err = c.createRepo(app)
-	if err != nil {
-		return errors.Wrap(err, "create repo failed")
-	}
-
-	details.Info("create repo webhook")
-	err = c.createRepoWebhook(app)
-	if err != nil {
-		return errors.Wrap(err, "webhook configuration failed")
-	}
-
-	details.Info("prepare code")
-	tmpDir, err := c.prepareCode(app, c.config.Org, path, serve)
-	if err != nil {
-		return errors.Wrap(err, "failed to prepare code")
-	}
-
-	details.Info("git push")
-	err = c.gitPush(app, tmpDir)
-	if err != nil {
-		return errors.Wrap(err, "failed to git push code")
-	}
-
-	details.Info("start tailing logs")
-	stopFunc, err := c.logs(app)
-	if err != nil {
-		return errors.Wrap(err, "failed to tail logs")
-	}
-	defer stopFunc()
-
-	details.Info("wait for apps")
-	err = c.waitForApp(c.config.Org, app)
-	if err != nil {
-		return errors.Wrap(err, "waiting for app failed")
-	}
-
-	details.Info("get app default route")
-	route, err := c.appDefaultRoute(app)
-	if err != nil {
-		return errors.Wrap(err, "failed to determine default app route")
-	}
-
-	details.Info("get app inference url")
-	inferenceUrl, err := c.getAppInferenceUrl(app)
-	if err != nil {
-		return errors.Wrap(err, "failed to determine app inference URL")
-	}
-
-	protocol := "http"
-	if !c.kubeClient.HasIstio() {
-		protocol = "https"
-	}
-
-	c.ui.Success().
-		WithStringValue("Name", app).
-		WithStringValue("Organization", c.config.Org).
-		WithStringValue("Route", fmt.Sprintf("%s://%s/%s", protocol, route, inferenceUrl)).
-		Msg("App is online.")
-
-	return nil
-}
-
 // Target targets an org in gitea
 func (c *FusemlClient) Target(org string) error {
 	log := c.Log.WithName("Target").WithValues("Organization", org)
@@ -482,37 +382,6 @@ func (c *FusemlClient) createRepo(name string) error {
 	return nil
 }
 
-func (c *FusemlClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.giteaClient.ListRepoHooks(c.config.Org, name, gitea.ListHooksOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to list webhooks")
-	}
-
-	for _, hook := range hooks {
-		url := hook.Config["url"]
-		if url == StagingEventListenerURL {
-			c.ui.Normal().Msg("Webhook already exists.")
-			return nil
-		}
-	}
-
-	c.ui.Normal().Msg("Creating webhook in the repo...")
-
-	c.giteaClient.CreateRepoHook(c.config.Org, name, gitea.CreateHookOption{
-		Active:       true,
-		BranchFilter: "*",
-		Config: map[string]string{
-			"secret":       HookSecret,
-			"http_method":  "POST",
-			"url":          StagingEventListenerURL,
-			"content_type": "json",
-		},
-		Type: "gitea",
-	})
-
-	return nil
-}
-
 func (c *FusemlClient) appDefaultRoute(name string) (string, error) {
 	domain, err := c.giteaResolver.GetMainDomain()
 	if err != nil {
@@ -525,139 +394,6 @@ func (c *FusemlClient) appDefaultRoute(name string) (string, error) {
 	}
 
 	return route, nil
-}
-
-func (c *FusemlClient) prepareCode(name, org, appDir string, serve string) (string, error) {
-	c.ui.Normal().Msg("Preparing code ...")
-
-	tmpDir, err := ioutil.TempDir("", "fuseml-app")
-	if err != nil {
-		return "", errors.Wrap(err, "can't create temp directory")
-	}
-
-	err = copy.Copy(appDir, tmpDir)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to copy app sources to temp location")
-	}
-
-	err = os.MkdirAll(filepath.Join(tmpDir, ".fuseml"), 0700)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
-	}
-
-	dockerfileDef := `
-FROM ghcr.io/fuseml/mlflow:1.14.1
-
-COPY conda.yaml /env/
-RUN env=$(awk '/name:/ {print $2}' /env/conda.yaml) && \
-	sed -i "s/base/$env/" /root/.bashrc
-
-ENV BASH_ENV /root/.bashrc
-RUN conda env create -f /env/conda.yaml
-	`
-
-	route, err := c.appDefaultRoute(name)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to calculate default app route")
-	}
-
-	dockerFile, err := os.Create(filepath.Join(tmpDir, ".fuseml", "Dockerfile"))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create file for FuseML resource definitions")
-	}
-	defer func() { err = dockerFile.Close() }()
-
-	_, err = dockerFile.WriteString(dockerfileDef)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to write FuseML Dockerfile definition")
-	}
-
-	servingType := c.getServingWorkloadType(serve)
-
-	tmplPathOnDisk, err := helpers.ExtractFile(`serving/` + servingType + `.yaml.tmpl`)
-	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + tmplPathOnDisk + " - " + err.Error())
-	}
-	defer os.Remove(tmplPathOnDisk)
-
-	servingTmpl, err := template.ParseFiles(tmplPathOnDisk)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to parse serving template for model")
-	}
-
-	appFile, err := os.Create(filepath.Join(tmpDir, ".fuseml", "serve.yaml"))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create file for kube resource definitions")
-	}
-	defer func() { err = appFile.Close() }()
-
-	err = servingTmpl.Execute(appFile, struct {
-		AppName            string
-		Route              string
-		Org                string
-		ServiceAccountName string
-	}{
-		AppName:            name,
-		Route:              route,
-		Org:                c.config.Org,
-		ServiceAccountName: deployments.WorkloadsDeploymentID,
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "failed to render kube resource definition")
-	}
-
-	return tmpDir, nil
-}
-
-func (c *FusemlClient) gitPush(name, tmpDir string) error {
-	c.ui.Normal().Msg("Pushing application code ...")
-
-	defer os.RemoveAll(tmpDir)
-
-	giteaURL, err := c.giteaResolver.GetGiteaURL()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea host")
-	}
-
-	u, err := url.Parse(giteaURL)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse gitea url")
-	}
-
-	username, password, err := c.giteaResolver.GetGiteaCredentials()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea credentials")
-	}
-
-	u.User = url.UserPassword(username, password)
-	u.Path = path.Join(u.Path, c.config.Org, name)
-
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
-cd "%s" 
-git init
-git config user.name "Fuseml"
-git config user.email ci@fuseml
-git remote add fuseml "%s"
-git fetch --all
-git reset --soft fuseml/main
-git add --all
-git commit --no-gpg-sign -m "pushed at %s"
-git push fuseml master:main
-`, tmpDir, u.String(), time.Now().Format("20060102150405")))
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		c.ui.Problem().
-			WithStringValue("Stdout", string(output)).
-			WithStringValue("Stderr", "").
-			Msg("App push failed")
-		return errors.Wrap(err, "push script failed")
-	}
-
-	c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
-	c.ui.Success().Msg("Application push successful")
-
-	return nil
 }
 
 func (c *FusemlClient) logs(name string) (context.CancelFunc, error) {
@@ -688,49 +424,6 @@ func (c *FusemlClient) logs(name string) (context.CancelFunc, error) {
 	}
 
 	return cancelFunc, nil
-}
-
-func (c *FusemlClient) waitForApp(org, name string) error {
-
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
-
-	err := c.kubeClient.WaitUntilPipelineRunExists(
-		c.ui, c.config.FusemlWorkloadsNamespace,
-		fmt.Sprintf("fuseml/app-name=%s", name),
-		60)
-	if err != nil {
-		return errors.Wrap(err, "PipelineRun was not created after 60 seconds")
-	}
-
-	err = c.kubeClient.WaitForPipelineRunSuccess(
-		c.ui, c.config.FusemlWorkloadsNamespace,
-		fmt.Sprintf("fuseml/app-name=%s", name),
-		600)
-
-	if err != nil {
-		return errors.Wrap(err, "PipelineRun did not succeed in 600 seconds")
-	}
-
-	err = c.kubeClient.WaitUntilPodBySelectorExist(
-		c.ui, c.config.FusemlWorkloadsNamespace,
-		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
-		60)
-	if err != nil {
-		return errors.Wrap(err, "Application was not created")
-	}
-
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
-
-	err = c.kubeClient.WaitForPodBySelectorRunning(
-		c.ui, c.config.FusemlWorkloadsNamespace,
-		fmt.Sprintf("fuseml/app-guid=%s.%s", org, name),
-		300)
-
-	if err != nil {
-		return errors.Wrap(err, "Application did not start in 300 seconds")
-	}
-
-	return nil
 }
 
 func (c *FusemlClient) ensureGoodOrg(org, msg string) error {
