@@ -52,7 +52,7 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	err = install_client.Install(cmd, &NeededOptions)
 	if err != nil {
-		return errors.Wrap(err, "error installing Fuseml")
+		return errors.Wrap(err, "error installing FuseML")
 	}
 
 	// Installation complete. Run `create-org`

@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fuseml-core
+  namespace: fuseml-core
+  labels:
+    app.kubernetes.io/name: fuseml-core
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fuseml-core
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fuseml-core
+    spec:
+      containers:
+      - name: fuseml-core
+        image: ghcr.io/fuseml/fuseml-core:latest
+        env:
+          - name: GITEA_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: GITEA_USERNAME
+                name: fuseml-core-gitea
+          - name: GITEA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: GITEA_PASSWORD
+                name: fuseml-core-gitea
+          - name: GITEA_URL
+            value: __GITEA_URL__
+        ports:
+        - containerPort: 80
+---        
+apiVersion: v1
+kind: Service
+metadata:
+  name: fuseml-core
+  namespace: fuseml-core
+  labels:
+    app.kubernetes.io/name: fuseml-core
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app.kubernetes.io/name: fuseml-core
