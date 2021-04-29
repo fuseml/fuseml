@@ -112,6 +112,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.MLflow{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Core{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	} {
@@ -142,6 +143,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Core{Timeout: DefaultTimeoutSec},
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
 	} {
