@@ -29,10 +29,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	tektonv1beta "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1beta1"
-	"knative.dev/pkg/apis"
-
 	// https://github.com/kubernetes/client-go/issues/345
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
@@ -68,7 +64,6 @@ type Cluster struct {
 	Kubectl    *kubernetes.Clientset
 	RestConfig *restclient.Config
 	platform   Platform
-	TektonCS   *versioned.Clientset
 }
 
 // NewClusterFromClient creates a new Cluster from a Kubernetes rest client config
@@ -85,13 +80,6 @@ func NewClusterFromClient(restConfig *restclient.Config) (*Cluster, error) {
 	if c.platform == nil {
 		c.platform = generic.NewPlatform()
 	}
-
-	cs, err := versioned.NewForConfig(restConfig)
-	if err != nil {
-		fmt.Printf("failed to create tekton pipeline client %s", err)
-		return nil, err
-	}
-	c.TektonCS = cs
 
 	return c, c.platform.Load(clientset)
 }
@@ -175,24 +163,6 @@ func (c *Cluster) IsPodRunningAndReady(podName, namespace string) wait.Condition
 	}
 }
 
-func (c *Cluster) PipelineRunSucceeded(pipelineRunClient tektonv1beta.PipelineRunInterface, pipelineRunName string) wait.ConditionFunc {
-	return func() (bool, error) {
-		pr, err := pipelineRunClient.Get(context.Background(), pipelineRunName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		c := pr.Status.GetCondition(apis.ConditionSucceeded)
-		if c != nil {
-			if c.Status == v1.ConditionTrue || c.Status == v1.ConditionFalse {
-				return true, nil
-			} else if c.Status == v1.ConditionUnknown && (c.Reason == "Running" || c.Reason == "Pending") {
-				return false, nil
-			}
-		}
-		return false, nil
-	}
-}
-
 func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(namespace, selector)
@@ -234,37 +204,6 @@ func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector str
 	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
 }
 
-// Wait up to timeout seconds for pipelinerun in 'namespace' with given 'selector' to enter running state.
-func (c *Cluster) PipelineRunExists(namespace, selector string) wait.ConditionFunc {
-
-	pipelineRunClient := c.TektonCS.TektonV1beta1().PipelineRuns(namespace)
-
-	return func() (bool, error) {
-
-		listOptions := metav1.ListOptions{}
-		if len(selector) > 0 {
-			listOptions.LabelSelector = selector
-		}
-		pipelineRunList, err := pipelineRunClient.List(context.Background(), listOptions)
-
-		if err != nil {
-			return false, err
-		}
-		if len(pipelineRunList.Items) == 0 {
-			return false, nil
-		}
-
-		return true, nil
-	}
-}
-
-func (c *Cluster) WaitUntilPipelineRunExists(ui *ui.UI, namespace, selector string, timeout int) error {
-	s := ui.Progressf("Checking existence of PipelineRun identified by %s in %s", selector, namespace)
-	defer s.Stop()
-
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PipelineRunExists(namespace, selector))
-}
-
 // WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
@@ -291,37 +230,6 @@ func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector str
 				return errors.New(fmt.Sprintf("Failed waiting for %s: %s\nPod Events: \n%s", pod.Name, err.Error(), events))
 			}
 		}
-	}
-	return nil
-}
-
-// Wait timeout seconds for given pipelinerun to enter status 'Succeeded'
-func (c *Cluster) WaitForPipelineRunSuccess(ui *ui.UI, namespace, selector string, timeout int) error {
-	s := ui.Progressf("Starting %s in %s", selector, namespace)
-	defer s.Stop()
-
-	pipelineRunClient := c.TektonCS.TektonV1beta1().PipelineRuns(namespace)
-	listOptions := metav1.ListOptions{}
-	if len(selector) > 0 {
-		listOptions.LabelSelector = selector
-	}
-	pipelineRunList, err := pipelineRunClient.List(context.Background(), listOptions)
-
-	if err != nil {
-		return errors.Wrapf(err, "Failed listing PipelineRuns with selector %s", selector)
-	}
-
-	if len(pipelineRunList.Items) == 0 {
-		return fmt.Errorf("No pods in %s with selector %s", namespace, selector)
-	}
-
-	name := pipelineRunList.Items[0].Name
-
-	// wait until it finishes or times out
-	err = wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PipelineRunSucceeded(pipelineRunClient, name))
-
-	if err != nil {
-		return errors.New(fmt.Sprintf("Failed waiting for PipelineRun (%s) to succeed %s: ", selector, err.Error()))
 	}
 	return nil
 }
