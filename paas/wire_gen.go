@@ -9,7 +9,6 @@ import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	config2 "github.com/fuseml/fuseml/cli/kubernetes/config"
 	"github.com/fuseml/fuseml/cli/paas/config"
-	"github.com/fuseml/fuseml/cli/paas/gitea"
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/spf13/pflag"
 )
@@ -29,20 +28,13 @@ func NewFusemlClient(flags *pflag.FlagSet, configOverrides func(*config.Config))
 	if err != nil {
 		return nil, nil, err
 	}
-	resolver := gitea.NewResolver(configConfig, cluster)
-	client, err := gitea.NewGiteaClient(resolver)
-	if err != nil {
-		return nil, nil, err
-	}
 	uiUI := ui.NewUI()
 	logger := config2.NewClientLogger()
 	fusemlClient := &FusemlClient{
-		giteaClient:   client,
-		kubeClient:    cluster,
-		ui:            uiUI,
-		config:        configConfig,
-		giteaResolver: resolver,
-		Log:           logger,
+		kubeClient: cluster,
+		ui:         uiUI,
+		config:     configConfig,
+		Log:        logger,
 	}
 	return fusemlClient, func() {
 	}, nil

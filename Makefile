@@ -99,7 +99,7 @@ embed_files: tools
 	statik -m -f -src=./embedded-files
 
 help:
-	( echo _ _ ___ _____ ________ Overview ; fuseml help ; for cmd in apps completion delete help info install uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; fuseml $$cmd --help ; done ; echo ) | tee HELP
+	( echo _ _ ___ _____ ________ Overview ; fuseml help ; for cmd in completion help info install uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; fuseml $$cmd --help ; done ; echo ) | tee HELP
 
 ########################################################################
 # Support
