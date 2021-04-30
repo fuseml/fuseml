@@ -29,9 +29,9 @@ func Execute() {
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	rootCmd := &cobra.Command{
-		Use:           "fuseml",
-		Short:         "Fuseml cli",
-		Long:          `fuseml cli is the official command line interface for Fuseml PaaS `,
+		Use:           "fuseml-installer",
+		Short:         "FuseML installer",
+		Long:          `fuseml-installer cli is the official installation tool for FuseML `,
 		Version:       fmt.Sprintf("%s", Version),
 		SilenceErrors: true,
 	}

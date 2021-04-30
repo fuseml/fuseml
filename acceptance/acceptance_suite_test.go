@@ -229,7 +229,7 @@ func buildFuseml() {
 }
 
 func copyFuseml() {
-	output, err := RunProc("cp dist/fuseml "+nodeTmpDir+"/", "..", false)
+	output, err := RunProc("cp dist/fuseml-installer "+nodeTmpDir+"/", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't copy FuseML: %s\n %s\n"+err.Error(), output))
 	}
@@ -260,7 +260,7 @@ func Fuseml(command string, dir string) (string, error) {
 		commandDir = dir
 	}
 
-	cmd := fmt.Sprintf(nodeTmpDir+"/fuseml --verbosity 1 %s", command)
+	cmd := fmt.Sprintf(nodeTmpDir+"/fuseml-installer --verbosity 1 %s", command)
 
 	return RunProc(cmd, commandDir, true)
 }

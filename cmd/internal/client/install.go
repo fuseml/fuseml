@@ -10,7 +10,7 @@ import (
 var NeededOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "system_domain",
-		Description: "The domain you are planning to use for Fuseml. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
+		Description: "The domain you are planning to use for FuseML. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",
@@ -23,8 +23,8 @@ const (
 
 var CmdInstall = &cobra.Command{
 	Use:           "install",
-	Short:         "install Fuseml in your configured kubernetes cluster",
-	Long:          `install Fuseml PaaS in your configured kubernetes cluster`,
+	Short:         "install FuseML in your configured kubernetes cluster",
+	Long:          `install FuseML in your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Install,
 	SilenceErrors: true,

@@ -14,32 +14,32 @@ build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
 build-local: lint
-	go build -ldflags '$(LDFLAGS)' -o dist/fuseml
+	go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer
 
 build-arm32: lint
-	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-arm32
+	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-arm32
 
 build-arm64: lint
-	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-arm64
+	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-arm64
 
 build-amd64: lint
-	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/fuseml-linux-amd64
+	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-amd64
 
 build-darwin-amd64: lint
-	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-darwin-amd64
+	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-darwin-amd64
 
 build-darwin-arm64: lint
-	GOARCH="arm64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-darwin-arm64
+	GOARCH="arm64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-darwin-arm64
 
 build-windows: lint
-	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-windows-amd64
+	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-windows-amd64
 
 compress:
-	upx --brute -1 ./dist/fuseml-linux-arm32
-	upx --brute -1 ./dist/fuseml-linux-arm64
-	upx --brute -1 ./dist/fuseml-linux-amd64
-	upx --brute -1 ./dist/fuseml-windows-amd64
-	upx --brute -1 ./dist/fuseml-darwin-amd64
+	upx --brute -1 ./dist/fuseml-installer-linux-arm32
+	upx --brute -1 ./dist/fuseml-installer-linux-arm64
+	upx --brute -1 ./dist/fuseml-installer-linux-amd64
+	upx --brute -1 ./dist/fuseml-installer-windows-amd64
+	upx --brute -1 ./dist/fuseml-installer-darwin-amd64
 
 test: embed_files
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
