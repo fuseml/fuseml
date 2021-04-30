@@ -228,7 +228,14 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	if err := core.createNamespace(c, ui); err != nil {
 		return err
 	}
-	// FIXME check for possible deployment presence here
+	if _, err := c.Kubectl.AppsV1().Deployments(coreDeploymentNamespace).Get(
+		context.Background(), coreDeploymentID, metav1.GetOptions{}); err == nil {
+
+		ui.Exclamation().Msg(
+			fmt.Sprintf("%s already present under %s namespace, skipping installation",
+				coreDeploymentID, coreDeploymentNamespace))
+		return nil
+	}
 
 	if err := core.createCoreCredsSecret(c); err != nil {
 		return err
