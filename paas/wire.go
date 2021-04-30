@@ -6,7 +6,6 @@ import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	kubeconfig "github.com/fuseml/fuseml/cli/kubernetes/config"
 	"github.com/fuseml/fuseml/cli/paas/config"
-	"github.com/fuseml/fuseml/cli/paas/gitea"
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/google/wire"
 	"github.com/spf13/pflag"
@@ -18,8 +17,6 @@ func NewFusemlClient(flags *pflag.FlagSet, configOverrides func(*config.Config))
 		wire.Struct(new(FusemlClient), "*"),
 		config.Load,
 		ui.NewUI,
-		gitea.NewGiteaClient,
-		gitea.NewResolver,
 		kubernetes.NewClusterFromClient,
 		kubeconfig.KubeConfig,
 		kubeconfig.NewClientLogger,

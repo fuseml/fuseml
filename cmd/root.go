@@ -29,9 +29,9 @@ func Execute() {
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	rootCmd := &cobra.Command{
-		Use:           "fuseml",
-		Short:         "Fuseml cli",
-		Long:          `fuseml cli is the official command line interface for Fuseml PaaS `,
+		Use:           "fuseml-installer",
+		Short:         "FuseML installer",
+		Long:          `fuseml-installer cli is the official installation tool for FuseML `,
 		Version:       fmt.Sprintf("%s", Version),
 		SilenceErrors: true,
 	}
@@ -51,20 +51,12 @@ func Execute() {
 	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
 	argToEnv["verbosity"] = "VERBOSITY"
 
-	client.CmdPush.Flags().StringVarP(&client.FlagServe, "serve", "s", "", "inference service to serve the model (kfserving, seldon_mlflow, seldon_sklearn, knative, deployment)")
-
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdUninstall)
 	rootCmd.AddCommand(client.CmdInfo)
-	rootCmd.AddCommand(client.CmdOrgs)
-	rootCmd.AddCommand(client.CmdCreateOrg)
-	rootCmd.AddCommand(client.CmdPush)
-	rootCmd.AddCommand(client.CmdDeleteApp)
-	rootCmd.AddCommand(client.CmdApps)
-	rootCmd.AddCommand(client.CmdTarget)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

@@ -14,13 +14,13 @@ var CmdCompletion = &cobra.Command{
 
 Bash:
 
-$ source <(fuseml completion bash)
+$ source <(fuseml-installer completion bash)
 
 # To load completions for each session, execute once:
 Linux:
-  $ fuseml completion bash > /etc/bash_completion.d/fuseml
+  $ fuseml-installer completion bash > /etc/bash_completion.d/fuseml-installer
 MacOS:
-  $ fuseml completion bash > /usr/local/etc/bash_completion.d/fuseml
+  $ fuseml-installer completion bash > /usr/local/etc/bash_completion.d/fuseml-installer
 
 ATTENTION:
     The generated script requires the bash-completion package.
@@ -35,23 +35,23 @@ Zsh:
 $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
 # To load completions for each session, execute once:
-$ fuseml completion zsh > "${fpath[1]}/_fuseml"
+$ fuseml-installer completion zsh > "${fpath[1]}/_fuseml-installer"
 
 # You will need to start a new shell for this setup to take effect.
 
 Fish:
 
-$ fuseml completion fish | source
+$ fuseml-installer completion fish | source
 
 # To load completions for each session, execute once:
-$ fuseml completion fish > ~/.config/fish/completions/fuseml.fish
+$ fuseml-installer completion fish > ~/.config/fish/completions/fuseml-installer.fish
 
 Powershell:
 
-PS> fuseml completion powershell | Out-String | Invoke-Expression
+PS> fuseml-installer completion powershell | Out-String | Invoke-Expression
 
 # To load completions for every new session, run:
-PS> fuseml completion powershell > fuseml.ps1
+PS> fuseml-installer completion powershell > fuseml-installer.ps1
 # and source this file from your powershell profile.
 `,
 	DisableFlagsInUseLine: true,
