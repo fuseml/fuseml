@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clone
+  namespace: fuseml-workloads
+spec:
+  description: >-
+    This task clones a git resource (input) to the workspace (source).
+    It also saves the git organization name at the workspace '.fuseml/_org' and the project
+    name at '.fuseml/_project'
+  workspaces:
+    - name: source
+  resources:
+    inputs:
+      - name: source-repo
+        type: git
+        targetPath: source
+  steps:
+    - name: stage
+      image: lachlanevenson/k8s-kubectl
+      workingDir: "/workspace/source"
+      script: |
+        pwd
+        ls -la
+    - name: prepare
+      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.22.0
+      workingDir: "/workspace/source"
+      script: |
+        mkdir -p .fuseml
+        basename `git config --get remote.origin.url` .git | tee .fuseml/_project
+        basename $(dirname `git config --get remote.origin.url`) | tee .fuseml/_org

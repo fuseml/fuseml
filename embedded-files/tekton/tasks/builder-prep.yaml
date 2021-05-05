@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: builder-prep
+  namespace: fuseml-workloads
+spec:
+  description: >-
+    This task prepare the requirements for the builder task (kaniko).
+    The result of this task is a path to a Dockerfile that can be manualy set (DOCKERFILE input)
+    or it will copy the Dockerfile from the provided IMAGE to the workspace and set its result
+    accordingly.
+  workspaces:
+    - name: source
+  params:
+  - name: IMAGE
+    description: Name (reference) of the image to build.
+  - name: DOCKERFILE
+    description: Path to the Dockerfile to build.
+    default: ""
+  results:
+    - name: DOCKERFILE-PATH
+      description: path to dockerfile
+  steps:
+    - name: set-dockerfile
+      workingDir: $(workspaces.source.path)
+      image: $(params.IMAGE)
+      script: |
+        dockerfile=$(params.DOCKERFILE)
+        if [ -z "${dockerfile}" ]; then
+          dockerfile=$(run)
+        fi
+        printf ${dockerfile} | tee $(results.DOCKERFILE-PATH.path)

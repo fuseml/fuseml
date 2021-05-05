@@ -3,9 +3,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -27,15 +24,16 @@ type Tekton struct {
 }
 
 const (
-	TektonDeploymentID      = "tekton"
-	tektonNamespace         = "tekton-pipelines"
-	tektonPipelineYamlPath  = "tekton/pipeline-v0.22.0.yaml"
-	tektonTriggersYamlPath  = "tekton/triggers-v0.12.1.yaml"
-	tektonDashboardYamlPath = "tekton/dashboard-v0.15.0.yaml"
-	tektonAdminRoleYamlPath = "tekton/admin-role.yaml"
-	tektonFusemlYamlPath    = "tekton/fuseml.yaml"
-	tektonKanikoYamlPath    = "tekton/kaniko.yaml"
+	TektonDeploymentID        = "tekton"
+	tektonNamespace           = "tekton-pipelines"
+	tektonPipelineYamlPath    = "tekton/install/pipeline-v0.22.0.yaml"
+	tektonTriggersYamlPath    = "tekton/install/triggers-v0.12.1.yaml"
+	tektonDashboardYamlPath   = "tekton/install/dashboard-v0.15.0.yaml"
+	tektonAdminRoleYamlPath   = "tekton/install/admin-role.yaml"
+	tektonFuseMLTasksYamlPath = "tekton/tasks"
 )
+
+var fuseMLTasks = []string{"clone", "kaniko", "builder-prep"}
 
 func (k *Tekton) ID() string {
 	return TektonDeploymentID
@@ -176,24 +174,17 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Installing FuseML pipelines and triggers"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonFusemlYamlPath)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
+	for _, task := range fuseMLTasks {
+		message = fmt.Sprintf("Installing FuseML task: %s", task)
+		out, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.KubectlApplyEmbeddedYaml(fmt.Sprintf("%s/%s.yaml", tektonFuseMLTasksYamlPath, task))
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
 
-	message = "Applying tekton Kaniko resources"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return applyTektonKaniko(c, ui)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
@@ -218,13 +209,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
-	}
-
-	if err := c.WaitUntilPodBySelectorExist(ui, WorkloadsDeploymentID, "eventlistener=mlflow-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton event listener deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ui, WorkloadsDeploymentID, "eventlistener=mlflow-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton event listener deployment to come up")
 	}
 
 	ui.Success().Msg("Tekton deployed")
@@ -272,50 +256,6 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	ui.Note().Msg("Upgrading Tekton...")
 
 	return k.apply(c, ui, options, true)
-}
-
-// The equivalent of:
-// kubectl get secret -n fuseml-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
-// written in golang.
-func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets("fuseml-workloads").
-		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
-}
-
-func applyTektonKaniko(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
-	caHash, err := getRegistryCAHash(c, ui)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get registry CA from fuseml-workloads namespace")
-	}
-
-	yamlPathOnDisk, err := helpers.ExtractFile(tektonKanikoYamlPath)
-	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + tektonKanikoYamlPath + " - " + err.Error())
-	}
-	defer os.Remove(yamlPathOnDisk)
-
-	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
-	if err != nil {
-		return "", err
-	}
-
-	// Constructing the name of the cert file as required by openssl.
-	// Lookup "subject_hash" in the docs: https://www.openssl.org/docs/man1.0.2/man1/x509.html
-	re := regexp.MustCompile(`{{CA_SELF_HASHED_NAME}}`)
-	renderedFileContents := re.ReplaceAll(fileContents, []byte(caHash+".0"))
-
-	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmpFilePath)
-
-	return helpers.Kubectl(fmt.Sprintf("apply -n fuseml-workloads --filename %s", tmpFilePath))
 }
 
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
