@@ -77,7 +77,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 }
 
 func (w Workloads) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-	if err := w.createWorkloadsNamespace(c, ui); err != nil {
+	if err := w.createWorkloadsNamespace(c, ui, options); err != nil {
 		return err
 	}
 
@@ -131,7 +131,7 @@ func (k Workloads) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.
 	return nil
 }
 
-func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) error {
+func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	if _, err := c.Kubectl.CoreV1().Namespaces().Create(
 		context.Background(),
 		&corev1.Namespace{
@@ -151,7 +151,7 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue); err != nil {
 		return err
 	}
-	if err := w.createGiteaCredsSecret(c); err != nil {
+	if err := w.createGiteaCredsSecret(c, options); err != nil {
 		return err
 	}
 	if err := w.createClusterRegistryCredsSecret(c); err != nil {
@@ -231,14 +231,20 @@ func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error
 	return nil
 }
 
-func (w Workloads) createGiteaCredsSecret(c *kubernetes.Cluster) error {
-	_, err := c.Kubectl.CoreV1().Secrets(WorkloadsDeploymentID).Create(context.Background(),
+func (w Workloads) createGiteaCredsSecret(c *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+	domain, err := options.GetString("system_domain", GiteaDeploymentID)
+	if err != nil {
+		return err
+	}
+	giteaSubdomain := GiteaDeploymentID + "." + domain
+	_, err = c.Kubectl.CoreV1().Secrets(WorkloadsDeploymentID).Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "gitea-creds",
 				Annotations: map[string]string{
 					//"kpack.io/git": fmt.Sprintf("http://%s.%s", GiteaDeploymentID, domain),
 					"tekton.dev/git-0": "http://gitea-http.gitea:10080", // TODO: Don't hardcode
+					"tekton.dev/git-1": fmt.Sprintf("http://%s", giteaSubdomain),
 				},
 			},
 			StringData: map[string]string{
