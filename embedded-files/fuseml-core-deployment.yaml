@@ -1,4 +1,52 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fuseml-core-tekton
+  namespace: fuseml-core
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fuseml-core-tekton
+  namespace: fuseml-workloads
+rules:
+- apiGroups:
+  - tekton.dev
+  resources:
+  - pipelines
+  - pipelineruns
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+- apiGroups:
+  - triggers.tekton.dev
+  resources:
+  - eventlisteners
+  - triggerbindings
+  - triggertemplates
+  verbs:
+  - get
+  - list
+  - create
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fuseml-core-tekton-binding
+  namespace: fuseml-workloads
+subjects:
+  - kind: ServiceAccount
+    name: fuseml-core-tekton
+    namespace: fuseml-core
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fuseml-core-tekton
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,6 +64,7 @@ spec:
       labels:
         app.kubernetes.io/name: fuseml-core
     spec:
+      serviceAccountName: fuseml-core-tekton
       containers:
       - name: fuseml-core
         image: ghcr.io/fuseml/fuseml-core:latest
