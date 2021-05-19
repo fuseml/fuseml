@@ -85,56 +85,49 @@ The basic FuseML workflow can be described as a GitOps type of workflow that sta
 
 ## Usage
 
-### Install
+### Software Requirements
+
+* git
+
+  Install the package provided by your OS. On SUSE Linux, call
+  ```bash
+  $ sudo zypper install git-core
+  ```
+
+* helm
+
+  Check upstream installation guide at https://helm.sh/docs/intro/install/
+
+* kubectl
+
+  Check upstream installation guide at https://kubernetes.io/docs/tasks/tools/#kubectl
+
+### Kubernetes cluster Requirements
+
+You need a Kubernetes cluster where fuseml and its components can be installed.
+
+There is a list of several other components that need to be installed in the cluster. Checkout `fuseml` [git repository](https://github.com/fuseml/fuseml) and run
+
+   ```bash
+   make kfserving-install
+   ```
+
+to instal KFServing, cert-manager, KNative and istio.
+
+### FuseML Installation
+
+To install all FuseML components into current Kubernetes cluster, run
 
 ```bash
 
-$ fuseml install
+$ fuseml-installer install
 
 ```
 ### Uninstall
 
 ```bash
 
-$ fuseml uninstall
-
-```
-
-### Push an application
-
-Run the following command for any supported application directory (e.g. one of the applications inside the [examples directory](examples)).
-
-```bash
-
-$ fuseml push NAME PATH_TO_APPLICATION_SOURCES
-
-```
-
-Note that the path argument is __optional__.
-If not specified the __current working directory__ will be used.
-Always ensure that the chosen directory contains a supported application.
-
-### Delete an application
-
-```bash
-
-$ fuseml delete NAME
-
-```
-
-### Create a separate org
-
-```bash
-
-$ fuseml create-org NAME
-
-```
-
-### Target an org
-
-```bash
-
-$ fuseml target NAME
+$ fuseml-installer uninstall
 
 ```
 
@@ -153,6 +146,12 @@ $ fuseml help
 $ fuseml COMMAND --help
 
 ```
+
+### Usage
+
+After using `fuseml-installer` to install required components of FuseML, for actual work with FuseML one needs to use `fuseml-core` command line client.
+
+Go to [fuseml-core project page](https://github.com/fuseml/fuseml-core) to learn about CLI.
 
 ## Configuration
 
