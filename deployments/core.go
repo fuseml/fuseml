@@ -210,7 +210,7 @@ func (core *Core) createCoreDeployment(giteaURL string) error {
 	}
 	defer os.Remove(tmpFilePath)
 
-	out, err := helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", coreDeploymentNamespace, tmpFilePath))
+	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
