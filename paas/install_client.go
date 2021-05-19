@@ -112,9 +112,9 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.MLflow{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Core{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+		&deployments.Core{Timeout: DefaultTimeoutSec},
 	} {
 		details.Info("deploy", "Deployment", deployment.ID())
 

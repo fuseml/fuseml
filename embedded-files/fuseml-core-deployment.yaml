@@ -81,6 +81,8 @@ spec:
                 name: fuseml-core-gitea
           - name: GITEA_URL
             value: __GITEA_URL__
+          - name: TEKTON_DASHBOARD_URL
+            value: __TEKTON_DASHBOARD_URL__
         ports:
         - containerPort: 80
 ---        
