@@ -188,7 +188,7 @@ func (core Core) createCoreCredsSecret(c *kubernetes.Cluster) error {
 }
 
 // Create fuseml-core deployment pointing to provided gitea server URL
-func (core *Core) createCoreDeployment(giteaURL string) error {
+func (core *Core) createCoreDeployment(giteaURL, tektonURL string) error {
 
 	yamlPathOnDisk, err := helpers.ExtractFile(coreDeploymentYamlPath)
 	if err != nil {
@@ -204,13 +204,16 @@ func (core *Core) createCoreDeployment(giteaURL string) error {
 	re := regexp.MustCompile(`__GITEA_URL__`)
 	renderedFileContents := re.ReplaceAllString(string(fileContents), giteaURL)
 
+	re = regexp.MustCompile(`__TEKTON_DASHBOARD_URL__`)
+	renderedFileContents = re.ReplaceAllString(string(renderedFileContents), tektonURL)
+
 	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmpFilePath)
 
-	out, err := helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", coreDeploymentNamespace, tmpFilePath))
+	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -251,7 +254,11 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	if !exists {
 		giteaURL = "http://gitea." + domain
 	}
-	if err := core.createCoreDeployment(giteaURL); err != nil {
+	tektonURL, exists := os.LookupEnv("TEKTON_DASHBOARD_URL")
+	if !exists {
+		tektonURL = "http://tekton." + domain
+	}
+	if err := core.createCoreDeployment(giteaURL, tektonURL); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed", coreDeploymentYamlPath))
 	}
 
