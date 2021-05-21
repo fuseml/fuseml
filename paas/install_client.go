@@ -124,6 +124,10 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		}
 	}
 
+	if err := downloadFuseMLCLI(c.ui); err != nil {
+		return err
+	}
+
 	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("FuseML installed.")
 
 	return nil

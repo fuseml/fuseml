@@ -16,6 +16,12 @@ func Untar(tarFile, targetDir string) error {
 		return err
 	}
 
+	return UntarStream(reader, targetDir)
+}
+
+// Untar takes an io.Reader representing a tar/gzip stream and a destination path and untars the stream
+// contents to the destination
+func UntarStream(reader io.Reader, targetDir string) error {
 	gzr, err := gzip.NewReader(reader)
 	if err != nil {
 		return err
