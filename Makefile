@@ -3,43 +3,20 @@ TEKTON_PIPELINE_VERSION=v0.22.0
 TEKTON_TRIGGERS_VERSION=v0.12.1
 TEKTON_DASHBOARD_VERSION=v0.15.0
 
+GOOS:=$(shell go env GOOS)
+GOARCH:=$(shell go env GOARCH)
+
 ########################################################################
 ## Development
 
-build: embed_files lint build-local
+# Embed files, run linter and build FuseML installer binary
+build: embed_files lint build-installer
 
-build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-darwin-amd64 build-darwin-arm64 build-windows
+build-installer:
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer
 
-build-all-small:
-	@$(MAKE) LDFLAGS+="-s -w" build-all
-
-build-local: lint
-	go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer
-
-build-arm32: lint
-	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-arm32
-
-build-arm64: lint
-	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-arm64
-
-build-amd64: lint
-	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-linux-amd64
-
-build-darwin-amd64: lint
-	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-darwin-amd64
-
-build-darwin-arm64: lint
-	GOARCH="arm64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-darwin-arm64
-
-build-windows: lint
-	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer-windows-amd64
-
-compress:
-	upx --brute -1 ./dist/fuseml-installer-linux-arm32
-	upx --brute -1 ./dist/fuseml-installer-linux-arm64
-	upx --brute -1 ./dist/fuseml-installer-linux-amd64
-	upx --brute -1 ./dist/fuseml-installer-windows-amd64
-	upx --brute -1 ./dist/fuseml-installer-darwin-amd64
+build-small:
+	@$(MAKE) LDFLAGS+="-s -w" build-installer
 
 test: embed_files
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
@@ -100,6 +77,36 @@ embed_files: tools
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; fuseml help ; for cmd in completion help info install uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; fuseml $$cmd --help ; done ; echo ) | tee HELP
+
+########################################################################
+## Release
+
+# Embed files, run linter and build release-ready archived binaries for all supported ARCHs and OSs
+release: embed_files lint release-all
+
+release-installer: build-small
+	tar zcf dist/fuseml-installer-$(GOOS)-$(GOARCH).tar.gz -C dist/ --remove-files --transform="s#\.\/##" ./fuseml-installer
+	cd dist && sha256sum -b fuseml-installer-$(GOOS)-$(GOARCH).tar.gz > fuseml-installer-$(GOOS)-$(GOARCH).tar.gz.sha256
+
+release-all: release-amd64 release-arm64 release-arm32 release-darwin-amd64 release-darwin-arm64 release-windows
+
+release-arm32:
+	$(MAKE) GOARCH="arm" GOOS="linux" release-installer
+
+release-arm64:
+	$(MAKE) GOARCH="arm64" GOOS="linux" release-installer
+
+release-amd64:
+	$(MAKE) GOARCH="amd64" GOOS="linux" release-installer
+
+release-darwin-amd64:
+	$(MAKE) GOARCH="amd64" GOOS="darwin" release-installer
+
+release-darwin-arm64:
+	$(MAKE) GOARCH="arm64" GOOS="darwin" release-installer
+
+release-windows:
+	$(MAKE) GOARCH="amd64" GOOS="windows" release-installer
 
 ########################################################################
 # Support
