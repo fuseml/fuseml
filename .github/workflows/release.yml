@@ -26,10 +26,7 @@ jobs:
       - name: Build FuseML
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
-          make build-all-small
-      - name: Create CHECKSUMS
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: ( cd dist ; sha256sum -b fuseml* > SHA256SUM.txt )
+          make release
       - name: Generate Changelog
         uses: heinrichreimer/github-changelog-generator-action@v2.1.1
         with:
