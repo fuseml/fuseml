@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
@@ -226,34 +224,6 @@ func (core *Core) createCoreDeployment(giteaURL, tektonURL string) error {
 	return nil
 }
 
-// download platform specific fuseml-core client to current directory
-func downloadClient(ui *ui.UI) error {
-
-	ui.Note().KeeplineUnder(1).Msg("Downloading command line client...")
-
-	coreClientPlatform := fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH)
-	name := fmt.Sprintf("%s-%s", coreClientName, coreClientPlatform)
-	url := fmt.Sprintf("%s/%s", coreClientDownloadURL, name)
-	dir, err := os.Getwd()
-	if err != nil {
-		return errors.New("Failed geting current directory")
-	}
-	path := filepath.Join(dir, name)
-
-	if err := helpers.DownloadFile(url, name, dir); err != nil {
-		return errors.New(fmt.Sprintf("Failed downloading client from %s: %s", url, err.Error()))
-	}
-	if coreClientPlatform[0:5] == "linux" {
-		if err := os.Chmod(path, 0750); err != nil {
-			return errors.New(fmt.Sprintf("Failed changing the file mode of %s", name))
-		}
-	}
-	ui.Note().Msg(fmt.Sprintf(
-		"FuseML core client saved as %s.\nCopy it to the location within your PATH (e.g. /usr/local/bin).",
-		path))
-	return nil
-}
-
 // Install fuseml-core component
 func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	if upgrade {
@@ -314,9 +284,6 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		// TODO else install ingress
 	} else {
 		ui.Exclamation().Msg("Creating ingress for fuseml-core not yet implemented")
-	}
-	if err := downloadClient(ui); err != nil {
-		return err
 	}
 
 	ui.Success().Msg("Core component deployed")
