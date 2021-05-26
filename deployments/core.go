@@ -286,7 +286,7 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		ui.Exclamation().Msg("Creating ingress for fuseml-core not yet implemented")
 	}
 
-	ui.Success().Msg("Core component deployed")
+	ui.Success().Msg(fmt.Sprintf("FuseML core component deployed (http://%s).", subdomain))
 
 	return nil
 }

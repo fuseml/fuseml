@@ -206,7 +206,7 @@ gitea:
 		}
 	}
 
-	ui.Success().Msg("Gitea deployed")
+	ui.Success().Msg(fmt.Sprintf("Gitea deployed (http://%s).", subdomain))
 
 	return nil
 }
