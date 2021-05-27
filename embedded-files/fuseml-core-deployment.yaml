@@ -67,7 +67,7 @@ spec:
       serviceAccountName: fuseml-core-tekton
       containers:
       - name: fuseml-core
-        image: ghcr.io/fuseml/fuseml-core:latest
+        image: ghcr.io/fuseml/fuseml-core:dev
         env:
           - name: GITEA_USERNAME
             valueFrom:
