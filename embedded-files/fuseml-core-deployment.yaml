@@ -69,15 +69,15 @@ spec:
       - name: fuseml-core
         image: ghcr.io/fuseml/fuseml-core:latest
         env:
-          - name: GITEA_USERNAME
+          - name: GITEA_ADMIN_USERNAME
             valueFrom:
               secretKeyRef:
-                key: GITEA_USERNAME
+                key: GITEA_ADMIN_USERNAME
                 name: fuseml-core-gitea
-          - name: GITEA_PASSWORD
+          - name: GITEA_ADMIN_PASSWORD
             valueFrom:
               secretKeyRef:
-                key: GITEA_PASSWORD
+                key: GITEA_ADMIN_PASSWORD
                 name: fuseml-core-gitea
           - name: GITEA_URL
             value: __GITEA_URL__

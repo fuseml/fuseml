@@ -153,21 +153,21 @@ func (core *Core) fetchGiteaCredSecret(c *kubernetes.Cluster) error {
 
 // Create secret to store gitea credentials required by fuseml-core deployment
 // It is possible for user to provide access to different gitea instance than the one deployed by fuseml-installer,
-// however if GITEA_USERNAME, GITEA_PASSWORD, GITEA_URL variables are not set, internal gitea will be used
+// however if GITEA_ADMIN_USERNAME, GITEA_ADMIN_PASSWORD, GITEA_URL variables are not set, internal gitea will be used
 func (core Core) createCoreCredsSecret(c *kubernetes.Cluster) error {
 
-	giteaUsername, exists := os.LookupEnv("GITEA_USERNAME")
+	giteaUsername, exists := os.LookupEnv("GITEA_ADMIN_USERNAME")
 	if !exists {
 		if err := core.fetchGiteaCredSecret(c); err != nil {
-			return errors.Wrap(err, "value for gitea user name (GITEA_USERNAME) was not provided neither found in installed gitea instance")
+			return errors.Wrap(err, "value for gitea admin user name (GITEA_ADMIN_USERNAME) was not provided neither found in installed gitea instance")
 		}
 		giteaUsername = string(core.giteaCredSecret.Data["username"])
 	}
 
-	giteaPassword, exists := os.LookupEnv("GITEA_PASSWORD")
+	giteaPassword, exists := os.LookupEnv("GITEA_ADMIN_PASSWORD")
 	if !exists {
 		if err := core.fetchGiteaCredSecret(c); err != nil {
-			return errors.Wrap(err, "value for gitea user password (GITEA_PASSWORD) was not provided neither found in installed gitea instance")
+			return errors.Wrap(err, "value for gitea admin user password (GITEA_ADMIN_PASSWORD) was not provided neither found in installed gitea instance")
 		}
 		giteaPassword = string(core.giteaCredSecret.Data["password"])
 	}
@@ -178,8 +178,8 @@ func (core Core) createCoreCredsSecret(c *kubernetes.Cluster) error {
 				Name: coreSecretName,
 			},
 			StringData: map[string]string{
-				"GITEA_USERNAME": giteaUsername,
-				"GITEA_PASSWORD": giteaPassword,
+				"GITEA_ADMIN_USERNAME": giteaUsername,
+				"GITEA_ADMIN_PASSWORD": giteaPassword,
 			},
 			Type: "Opaque",
 		}, metav1.CreateOptions{})
