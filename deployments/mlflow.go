@@ -200,7 +200,8 @@ minio:
 		}
 	}
 
-	ui.Success().Msg("MLflow deployed")
+	ui.Success().Msg(fmt.Sprintf("Minio deployed (http://minio.%s).", domain))
+	ui.Success().Msg(fmt.Sprintf("MLflow deployed (http://%s).", subdomain))
 
 	return nil
 }

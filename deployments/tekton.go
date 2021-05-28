@@ -186,12 +186,10 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 
 	}
-
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
-
 	if c.HasIstio() {
 		message := "Creating Tekton dashboard istio ingress gateway"
 		_, err = helpers.WaitForCommandCompletion(ui, message,
@@ -211,7 +209,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	ui.Success().Msg("Tekton deployed")
+	ui.Success().Msg(fmt.Sprintf("Tekton deployed (http://tekton.%s).", domain))
 
 	return nil
 }
