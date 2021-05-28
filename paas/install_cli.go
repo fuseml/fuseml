@@ -23,14 +23,24 @@ func downloadFuseMLCLI(ui *ui.UI) error {
 
 	coreClientPlatform := fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH)
 	name := fmt.Sprintf("%s-%s", coreClientName, coreClientPlatform)
-	url := fmt.Sprintf("%s/%s.tar.gz", coreClientDownloadURL, name)
+	extension := "tar.gz"
+	if runtime.GOOS == "windows" {
+		extension = "zip"
+	}
+
+	url := fmt.Sprintf("%s/%s.%s", coreClientDownloadURL, name, extension)
 	dir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed geting current directory")
 	}
 	path := filepath.Join(dir, coreClientName)
 
-	if err := helpers.DownloadAndUntar(url, dir); err != nil {
+	if runtime.GOOS == "windows" {
+		err = helpers.DownloadAndUnzip(url, dir)
+	} else {
+		err = helpers.DownloadAndUntar(url, dir)
+	}
+	if err != nil {
 		return errors.New(fmt.Sprintf("Failed downloading client from %s: %s", url, err.Error()))
 	}
 
