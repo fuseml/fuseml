@@ -68,6 +68,7 @@ spec:
       containers:
       - name: fuseml-core
         image: ghcr.io/fuseml/fuseml-core:dev
+        imagePullPolicy: Always
         env:
           - name: GITEA_ADMIN_USERNAME
             valueFrom:
