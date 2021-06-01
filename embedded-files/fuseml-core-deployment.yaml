@@ -2,50 +2,24 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: fuseml-core-tekton
+  name: fuseml-core
   namespace: fuseml-core
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: fuseml-core-tekton
-  namespace: fuseml-workloads
-rules:
-- apiGroups:
-  - tekton.dev
-  resources:
-  - pipelines
-  - pipelineruns
-  verbs:
-  - create
-  - get
-  - list
-  - delete
-- apiGroups:
-  - triggers.tekton.dev
-  resources:
-  - eventlisteners
-  - triggerbindings
-  - triggertemplates
-  verbs:
-  - get
-  - list
-  - create
-  - delete
----
+# Give the admin rights to ServiceAccount, so it can
+# delete various resources forming FuseML applications
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: fuseml-core-tekton-binding
+  name: fuseml-core-admin-binding
   namespace: fuseml-workloads
 subjects:
   - kind: ServiceAccount
-    name: fuseml-core-tekton
+    name: fuseml-core
     namespace: fuseml-core
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: fuseml-core-tekton
+  kind: ClusterRole
+  name: cluster-admin
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -64,7 +38,7 @@ spec:
       labels:
         app.kubernetes.io/name: fuseml-core
     spec:
-      serviceAccountName: fuseml-core-tekton
+      serviceAccountName: fuseml-core
       containers:
       - name: fuseml-core
         image: ghcr.io/fuseml/fuseml-core:dev
