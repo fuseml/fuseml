@@ -241,15 +241,24 @@ func (core *Core) createCoreDeployment() error {
 
 // Install fuseml-core component
 func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if upgrade {
-		ui.Note().Msg("Upgrade operation not implemented...")
-		return nil
+	if !upgrade {
+		if err := core.createNamespace(c, ui); err != nil {
+			return errors.Wrap(err, "Failed creating namespace for Core component")
+		}
 	}
-	if err := core.createNamespace(c, ui); err != nil {
+	_, err := c.Kubectl.AppsV1().Deployments(coreDeploymentNamespace).Get(
+		context.Background(),
+		coreDeploymentID,
+		metav1.GetOptions{})
+
+	if upgrade && apierrors.IsNotFound(err) {
+
+		ui.Exclamation().Msg(
+			fmt.Sprintf("%s not found in namespace %s. Upgrade not possible",
+				coreDeploymentID, coreDeploymentNamespace))
 		return err
-	}
-	if _, err := c.Kubectl.AppsV1().Deployments(coreDeploymentNamespace).Get(
-		context.Background(), coreDeploymentID, metav1.GetOptions{}); err == nil {
+
+	} else if !upgrade && err == nil {
 
 		ui.Exclamation().Msg(
 			fmt.Sprintf("%s already present under %s namespace, skipping installation",
@@ -263,14 +272,16 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	}
 	subdomain := coreDeploymentID + "." + domain
 
-	if err := core.createCoreCredsSecret(c); err != nil {
-		return err
+	if !upgrade {
+		if err := core.createCoreCredsSecret(c); err != nil {
+			return errors.Wrap(err, "Failed creating secret for Core component")
+		}
+		if err := core.createCoreConfigMap(c, domain); err != nil {
+			return errors.Wrap(err, "Failed creating configMap for Core component")
+		}
 	}
 
-	if err := core.createCoreConfigMap(c, domain); err != nil {
-		return err
-	}
-
+	// create new deployment or upgrade existing one
 	if err := core.createCoreDeployment(); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed", coreDeploymentYamlPath))
 	}
@@ -282,6 +293,10 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.Wrap(err, "failed waiting for fuseml-core deployment to come up")
 	}
 
+	if upgrade {
+		ui.Success().Msg("FuseML core component successfully upgraded.")
+		return nil
+	}
 	if c.HasIstio() {
 		message := "Creating istio ingress gateway"
 		out, err := helpers.WaitForCommandCompletion(ui, message,
@@ -328,6 +343,15 @@ func (core Core) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 }
 
 func (core Core) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-	ui.Note().Msg("Upgrade operation not implemented...")
-	return nil
+	_, err := c.Kubectl.CoreV1().Namespaces().Get(
+		context.Background(),
+		coreDeploymentNamespace,
+		metav1.GetOptions{},
+	)
+	if apierrors.IsNotFound(err) {
+		ui.Exclamation().Msg(
+			fmt.Sprintf("%s namespace not found! Was FuseML core properly installed?", coreDeploymentNamespace))
+		return err
+	}
+	return core.apply(c, ui, options, true)
 }

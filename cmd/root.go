@@ -56,6 +56,7 @@ func Execute() {
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdUninstall)
+	rootCmd.AddCommand(client.CmdUpgrade)
 	rootCmd.AddCommand(client.CmdInfo)
 
 	if err := rootCmd.Execute(); err != nil {

@@ -100,6 +100,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
 	installFuseml()
+	upgradeFuseml()
 })
 
 var _ = AfterEach(func() {
@@ -237,6 +238,10 @@ func copyFuseml() {
 
 func installFuseml() (string, error) {
 	return Fuseml("install", "")
+}
+
+func upgradeFuseml() (string, error) {
+	return Fuseml("upgrade", "")
 }
 
 func uninstallFuseml() (string, error) {
