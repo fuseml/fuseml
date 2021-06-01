@@ -55,9 +55,15 @@ spec:
                 key: GITEA_ADMIN_PASSWORD
                 name: fuseml-core-gitea
           - name: GITEA_URL
-            value: __GITEA_URL__
+            valueFrom:
+              configMapKeyRef:
+                key: GITEA_URL
+                name: config-fuseml-core
           - name: TEKTON_DASHBOARD_URL
-            value: __TEKTON_DASHBOARD_URL__
+            valueFrom:
+              configMapKeyRef:
+                key: TEKTON_DASHBOARD_URL
+                name: config-fuseml-core
         ports:
         - containerPort: 80
 ---        

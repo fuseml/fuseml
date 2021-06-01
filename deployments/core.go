@@ -3,9 +3,7 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"regexp"
 
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
@@ -29,6 +27,7 @@ const (
 	coreServiceName         = "fuseml-core"
 	coreServicePort         = 80
 	coreSecretName          = "fuseml-core-gitea"
+	coreConfigMapName       = "config-fuseml-core"
 	coreDeploymentYamlPath  = "fuseml-core-deployment.yaml"
 	coreVersion             = "0.1"
 
@@ -70,6 +69,10 @@ func (core Core) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 	if err = c.Kubectl.CoreV1().Secrets(coreDeploymentNamespace).Delete(context.Background(), coreSecretName, metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err, "Failed deleting secret %s", coreSecretName)
+	}
+
+	if err = c.Kubectl.CoreV1().ConfigMaps(coreDeploymentNamespace).Delete(context.Background(), coreConfigMapName, metav1.DeleteOptions{}); err != nil {
+		return errors.Wrapf(err, "Failed deleting configMap %s", coreConfigMapName)
 	}
 
 	message := "Deleting Core component namespace " + coreDeploymentNamespace
@@ -190,8 +193,37 @@ func (core Core) createCoreCredsSecret(c *kubernetes.Cluster) error {
 	return nil
 }
 
-// Create fuseml-core deployment pointing to provided gitea server URL
-func (core *Core) createCoreDeployment(giteaURL, tektonURL string) error {
+func (core Core) createCoreConfigMap(c *kubernetes.Cluster, domain string) error {
+
+	giteaURL, exists := os.LookupEnv("GITEA_URL")
+	if !exists {
+		giteaURL = "http://gitea." + domain
+	}
+	tektonURL, exists := os.LookupEnv("TEKTON_DASHBOARD_URL")
+	if !exists {
+		tektonURL = "http://tekton." + domain
+	}
+
+	_, err := c.Kubectl.CoreV1().ConfigMaps(coreDeploymentNamespace).Create(context.Background(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: coreConfigMapName,
+			},
+			Data: map[string]string{
+				"GITEA_URL":            giteaURL,
+				"TEKTON_DASHBOARD_URL": tektonURL,
+			},
+		}, metav1.CreateOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Create fuseml-core deployment using the embedded template
+func (core *Core) createCoreDeployment() error {
 
 	yamlPathOnDisk, err := helpers.ExtractFile(coreDeploymentYamlPath)
 	if err != nil {
@@ -199,24 +231,7 @@ func (core *Core) createCoreDeployment(giteaURL, tektonURL string) error {
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
-	if err != nil {
-		return err
-	}
-
-	re := regexp.MustCompile(`__GITEA_URL__`)
-	renderedFileContents := re.ReplaceAllString(string(fileContents), giteaURL)
-
-	re = regexp.MustCompile(`__TEKTON_DASHBOARD_URL__`)
-	renderedFileContents = re.ReplaceAllString(string(renderedFileContents), tektonURL)
-
-	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmpFilePath)
-
-	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
+	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s", yamlPathOnDisk))
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -242,25 +257,21 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return nil
 	}
 
-	if err := core.createCoreCredsSecret(c); err != nil {
-		return err
-	}
-
 	domain, err := options.GetString("system_domain", coreDeploymentID)
 	if err != nil {
 		return err
 	}
 	subdomain := coreDeploymentID + "." + domain
 
-	giteaURL, exists := os.LookupEnv("GITEA_URL")
-	if !exists {
-		giteaURL = "http://gitea." + domain
+	if err := core.createCoreCredsSecret(c); err != nil {
+		return err
 	}
-	tektonURL, exists := os.LookupEnv("TEKTON_DASHBOARD_URL")
-	if !exists {
-		tektonURL = "http://tekton." + domain
+
+	if err := core.createCoreConfigMap(c, domain); err != nil {
+		return err
 	}
-	if err := core.createCoreDeployment(giteaURL, tektonURL); err != nil {
+
+	if err := core.createCoreDeployment(); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed", coreDeploymentYamlPath))
 	}
 
