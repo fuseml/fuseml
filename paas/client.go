@@ -4,6 +4,7 @@ import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas/config"
 	"github.com/fuseml/fuseml/cli/paas/ui"
+	"github.com/fuseml/fuseml/cli/paas/version"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
@@ -33,6 +34,26 @@ func (c *FusemlClient) Info() error {
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		Msg("Fuseml Environment")
+
+	return nil
+}
+
+// Version displays version information about the installer
+func (c *FusemlClient) Version() error {
+	log := c.Log.WithName("version")
+	log.Info("start")
+	defer log.Info("return")
+
+	version := version.GetInfo()
+
+	c.ui.Success().
+		WithStringValue("Version", version.Version).
+		WithStringValue("GitCommit", version.GitCommit).
+		WithStringValue("Build Date", version.BuildDate).
+		WithStringValue("Go Version", version.GoVersion).
+		WithStringValue("Compiler", version.Compiler).
+		WithStringValue("Platform", version.Platform).
+		Msg("Fuseml Installer")
 
 	return nil
 }

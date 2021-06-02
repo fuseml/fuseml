@@ -9,13 +9,10 @@ import (
 	"github.com/fuseml/fuseml/cli/cmd/internal/client"
 	"github.com/fuseml/fuseml/cli/kubernetes/config"
 	pconfig "github.com/fuseml/fuseml/cli/paas/config"
+	"github.com/fuseml/fuseml/cli/paas/version"
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-)
-
-const (
-	Version = "0.1"
 )
 
 var (
@@ -32,7 +29,7 @@ func Execute() {
 		Use:           "fuseml-installer",
 		Short:         "FuseML installer",
 		Long:          `fuseml-installer cli is the official installation tool for FuseML `,
-		Version:       fmt.Sprintf("%s", Version),
+		Version:       version.Version,
 		SilenceErrors: true,
 	}
 
@@ -57,6 +54,7 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdUninstall)
 	rootCmd.AddCommand(client.CmdInfo)
+	rootCmd.AddCommand(client.CmdVersion)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

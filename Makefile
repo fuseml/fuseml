@@ -6,6 +6,37 @@ TEKTON_DASHBOARD_VERSION=v0.15.0
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
+LDFLAGS:= -w -s
+
+PKG_PATH=github.com/fuseml/fuseml/cli/paas
+
+GIT_COMMIT = $(shell git rev-parse --short=8 HEAD)
+GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD|grep -v HEAD)
+GIT_TAG    = $(shell git describe --tags --abbrev=0 --exact-match 2>/dev/null)
+BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+ifdef VERSION
+	BINARY_VERSION = $(VERSION)
+else
+# Use `dev` as a default version value when compiling in the main branch
+ifeq ($(GIT_BRANCH),main)
+	BINARY_VERSION = dev
+# Use the branch name as a default version value when compiling in another branch
+else
+	BINARY_VERSION = $(GIT_BRANCH)
+endif
+ifneq ($(GIT_TAG),)
+	BINARY_VERSION = $(GIT_TAG)
+else
+endif
+endif
+
+LDFLAGS += -X $(PKG_PATH)/version.GitCommit=$(GIT_COMMIT)
+LDFLAGS += -X $(PKG_PATH)/version.BuildDate=$(BUILD_DATE)
+ifneq ($(BINARY_VERSION),)
+LDFLAGS += -X $(PKG_PATH)/version.Version=$(BINARY_VERSION)
+endif
+
 ########################################################################
 ## Development
 
