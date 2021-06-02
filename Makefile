@@ -160,6 +160,24 @@ kfserving-install: knative-install cert-manager-install
 seldon-install:
 	@./scripts/seldon-operator-install.sh
 
+k3d-install:
+	curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
+
+new-test-cluster:
+	@./scripts/ci/k3d-cluster.sh create
+
+delete-test-cluster:
+	@./scripts/ci/k3d-cluster.sh delete
+
+mlflow-e2e:
+	@./scripts/ci/mlflow-e2e.sh
+
+fuseml-install:
+	@./dist/fuseml-installer install
+
+test-mlflow-e2e: build new-test-cluster fuseml-install kfserving-install mlflow-e2e delete-test-cluster
+
+
 ########################################################################
 # Kube dev environments
 

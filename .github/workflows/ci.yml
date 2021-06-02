@@ -25,10 +25,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.13.7'
+          go-version: '^1.16'
+
       - name: Cache Go modules
         uses: actions/cache@v2
         with:
@@ -36,6 +38,7 @@ jobs:
           key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-go
+
       - name: Lint
         run: |
           make lint
@@ -46,10 +49,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.13.7'
+          go-version: '^1.16'
+
       - name: Cache Go modules
         uses: actions/cache@v2
         with:
@@ -57,19 +62,17 @@ jobs:
           key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-go-
+
       - name: Setup Ginkgo Test Framework
         run: |
           go get -u github.com/onsi/ginkgo/ginkgo
+
       - name: Run unit tests
         run: |
           make test
 
-  acceptance-tests:
+  mlflow-e2e:
     runs-on: ubuntu-latest
-    strategy:
-      matrix: 
-        serve: ["traefik", "knative", "kfserving", "seldon_mlflow", "seldon_sklearn"]
-      fail-fast: false
 
     steps:
       - name: Free disk space
@@ -83,12 +86,18 @@ jobs:
           echo
           echo "Available storage:"
           df -h
-      - name: Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v2
+
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.13.7'
+          go-version: '^1.16'
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+
       - name: Cache Go modules
         uses: actions/cache@v2
         with:
@@ -96,21 +105,24 @@ jobs:
           key: ${{ github.job }}-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ github.job }}-${{ runner.os }}-go-
-      - name: Setup Ginkgo Test Framework
+
+      - name: Build fuseml-installer
+        run: make build
+
+      - name: Install k3d
+        run: make k3d-install
+
+      - name: Create k8s cluster
+        run: make new-test-cluster
+
+      - name: Install FuseML
         run: |
-          go get -u github.com/onsi/ginkgo/ginkgo
-      - name: Cache Tools
-        uses: actions/cache@v2
-        with:
-          path: ${{ github.workspace }}/tools
-          key: ${{ runner.os }}-tools
-      - name: Install Tools
+          ./dist/fuseml-installer version
+          make fuseml-install
+
+      - name: Install KFServing
+        run: make kfserving-install
+
+      - name: Run mlflow-e2e
         run: |
-          make tools-install
-          echo "`pwd`/output/bin" >> $GITHUB_PATH
-      - name: Run acceptance tests
-        env:
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          make test-acceptance-${{ matrix.serve }}
+          make mlflow-e2e
