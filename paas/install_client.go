@@ -163,6 +163,34 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	return nil
 }
 
+func (c *InstallClient) Upgrade(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
+	log := c.Log.WithName("Upgrade")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1)
+
+	c.ui.Note().Msg("FuseML upgrading...")
+
+	options, err := options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	if err != nil {
+		return err
+	}
+
+	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Core{Timeout: DefaultTimeoutSec},
+	} {
+		details.Info("upgrade", "Deployment", deployment.ID())
+		err := deployment.Upgrade(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
+		if err != nil {
+			return err
+		}
+	}
+
+	c.ui.Success().Msg("FuseML upgraded.")
+
+	return nil
+}
+
 // showInstallConfiguration prints the options and their values to stdout, to
 // inform the user of the detected and chosen configuration
 func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOptions) {
