@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	coreClientDownloadURL = "https://github.com/fuseml/fuseml-core/releases/latest/download"
+        coreClientDownloadURL = "https://github.com/fuseml/fuseml-core/releases/download/v0.1.0"
 	coreClientName        = "fuseml"
 )
 
