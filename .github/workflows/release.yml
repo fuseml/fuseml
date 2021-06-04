@@ -24,7 +24,6 @@ jobs:
         with:
           go-version: '^1.13.7'
       - name: Build FuseML
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make release
       - name: Generate Changelog
@@ -38,7 +37,6 @@ jobs:
           stripHeaders: "true"
       - name: Release FuseML
         uses: softprops/action-gh-release@v1
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
         with:
           files: ./dist/*
           body_path: ./CHANGELOG.md
