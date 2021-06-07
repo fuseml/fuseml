@@ -20,6 +20,11 @@ type ExternalFuncWithString func() (output string, err error)
 type ExternalFunc func() (err error)
 
 func RunProc(cmd, dir string, toStdout bool) (string, error) {
+	return RunProcEnv(cmd, dir, toStdout, make([]string, 0))
+}
+
+// run process with the list of env variables
+func RunProcEnv(cmd, dir string, toStdout bool, env []string) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
 		fmt.Println("Executing ", cmd)
 	}
@@ -32,6 +37,9 @@ func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	} else {
 		p.Stdout = &b
 		p.Stderr = &b
+	}
+	for _, e := range env {
+		p.Env = append(os.Environ(), e)
 	}
 
 	p.Dir = dir
