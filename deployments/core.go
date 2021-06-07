@@ -11,8 +11,10 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Core struct {
@@ -24,6 +26,7 @@ type Core struct {
 const (
 	coreDeploymentID        = "fuseml-core"
 	coreDeploymentNamespace = "fuseml-core"
+	coreIngressName         = "fuseml-core-ingress"
 	coreServiceName         = "fuseml-core"
 	coreServicePort         = 80
 	coreSecretName          = "fuseml-core-gitea"
@@ -115,6 +118,36 @@ func (core Core) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Success().Msg("Core component removed")
 
 	return nil
+}
+
+func createCoreIngress(c *kubernetes.Cluster, subdomain string) error {
+	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(coreDeploymentNamespace).Create(
+		context.Background(),
+		&v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      coreIngressName,
+				Namespace: coreDeploymentNamespace,
+				Annotations: map[string]string{
+					"kubernetes.io/ingress.class": "traefik",
+				},
+			},
+			Spec: v1beta1.IngressSpec{
+				Rules: []v1beta1.IngressRule{{
+					Host: subdomain,
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{{
+								Path: "/",
+								Backend: v1beta1.IngressBackend{
+									ServiceName: coreServiceName,
+									ServicePort: intstr.IntOrString{
+										Type:   intstr.Int,
+										IntVal: 80,
+									},
+								}}}}}}}}},
+		metav1.CreateOptions{},
+	)
+	return err
 }
 
 // Create kubernetes namespace for core component
@@ -307,9 +340,13 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 		}
-		// TODO else install ingress
 	} else {
-		ui.Exclamation().Msg("Creating ingress for fuseml-core not yet implemented")
+		message := "Creating ingress for fuseml-core"
+		_, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return "", createCoreIngress(c, subdomain)
+			},
+		)
 	}
 
 	ui.Success().Msg(fmt.Sprintf("FuseML core component deployed (http://%s).", subdomain))
