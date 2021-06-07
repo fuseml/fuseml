@@ -24,7 +24,8 @@ type Core struct {
 }
 
 const (
-	coreDeploymentID        = "fuseml-core"
+	// The deployment ID used for the fuseml-core service
+	CoreDeploymentID        = "fuseml-core"
 	coreDeploymentNamespace = "fuseml-core"
 	coreIngressName         = "fuseml-core-ingress"
 	coreServiceName         = "fuseml-core"
@@ -33,13 +34,10 @@ const (
 	coreConfigMapName       = "config-fuseml-core"
 	coreDeploymentYamlPath  = "fuseml-core-deployment.yaml"
 	coreVersion             = "0.1"
-
-	coreClientDownloadURL = "https://github.com/fuseml/fuseml-core/releases/latest/download"
-	coreClientName        = "fuseml_core-cli"
 )
 
 func (core *Core) ID() string {
-	return coreDeploymentID
+	return CoreDeploymentID
 }
 
 func (core *Core) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -281,29 +279,29 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	}
 	_, err := c.Kubectl.AppsV1().Deployments(coreDeploymentNamespace).Get(
 		context.Background(),
-		coreDeploymentID,
+		CoreDeploymentID,
 		metav1.GetOptions{})
 
 	if upgrade && apierrors.IsNotFound(err) {
 
 		ui.Exclamation().Msg(
 			fmt.Sprintf("%s not found in namespace %s. Upgrade not possible",
-				coreDeploymentID, coreDeploymentNamespace))
+				CoreDeploymentID, coreDeploymentNamespace))
 		return err
 
 	} else if !upgrade && err == nil {
 
 		ui.Exclamation().Msg(
 			fmt.Sprintf("%s already present under %s namespace, skipping installation",
-				coreDeploymentID, coreDeploymentNamespace))
+				CoreDeploymentID, coreDeploymentNamespace))
 		return nil
 	}
 
-	domain, err := options.GetString("system_domain", coreDeploymentID)
+	domain, err := options.GetString("system_domain", CoreDeploymentID)
 	if err != nil {
 		return err
 	}
-	subdomain := coreDeploymentID + "." + domain
+	subdomain := CoreDeploymentID + "." + domain
 
 	// delete existing secret and configMap to ensure we have the latest one after upgrade
 	if upgrade {
@@ -329,10 +327,10 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed", coreDeploymentYamlPath))
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, coreDeploymentNamespace, "app.kubernetes.io/name="+coreDeploymentID, core.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, coreDeploymentNamespace, "app.kubernetes.io/name="+CoreDeploymentID, core.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting fuseml-core deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, coreDeploymentNamespace, "app.kubernetes.io/name="+coreDeploymentID, core.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, coreDeploymentNamespace, "app.kubernetes.io/name="+CoreDeploymentID, core.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting for fuseml-core deployment to come up")
 	}
 
@@ -344,7 +342,7 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		message := "Creating istio ingress gateway"
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
-				return helpers.CreateIstioIngressGateway(coreDeploymentID, coreDeploymentNamespace, subdomain, coreServiceName, coreServicePort)
+				return helpers.CreateIstioIngressGateway(CoreDeploymentID, coreDeploymentNamespace, subdomain, coreServiceName, coreServicePort)
 			},
 		)
 		if err != nil {

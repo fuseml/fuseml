@@ -121,7 +121,8 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 			return err
 		}
 	}
-	if err := downloadFuseMLCLI(c.ui); err != nil {
+
+	if err := downloadFuseMLCLI(c.ui, domain.Value.(string)); err != nil {
 		return err
 	}
 

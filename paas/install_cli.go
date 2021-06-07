@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/fuseml/fuseml/cli/deployments"
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/pkg/errors"
@@ -17,7 +18,7 @@ const (
 )
 
 // download platform specific fuseml command line client to current directory
-func downloadFuseMLCLI(ui *ui.UI) error {
+func downloadFuseMLCLI(ui *ui.UI, domain string) error {
 
 	ui.Note().KeeplineUnder(1).Msg("Downloading command line client...")
 
@@ -47,5 +48,11 @@ func downloadFuseMLCLI(ui *ui.UI) error {
 	ui.Note().Msg(fmt.Sprintf(
 		"FuseML command line client saved as %s.\nCopy it to the location within your PATH (e.g. /usr/local/bin).",
 		path))
+
+	fuseml_url := fmt.Sprintf("http://%s.%s", deployments.CoreDeploymentID, domain)
+	ui.Note().Msg(fmt.Sprintf(
+		"To use the FuseML CLI, you must point it to the FuseML server URL, e.g.:\n\n    export FUSEML_SERVER_URL=%s",
+		fuseml_url))
+
 	return nil
 }
