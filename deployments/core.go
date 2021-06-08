@@ -305,13 +305,23 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	}
 	subdomain := coreDeploymentID + "." + domain
 
-	if !upgrade {
-		if err := core.createCoreCredsSecret(c); err != nil {
-			return errors.Wrap(err, "Failed creating secret for Core component")
+	// delete existing secret and configMap to ensure we have the latest one after upgrade
+	if upgrade {
+		err = c.Kubectl.CoreV1().Secrets(coreDeploymentNamespace).Delete(context.Background(), coreSecretName, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed deleting secret %s", coreSecretName)
 		}
-		if err := core.createCoreConfigMap(c, domain); err != nil {
-			return errors.Wrap(err, "Failed creating configMap for Core component")
+		err = c.Kubectl.CoreV1().ConfigMaps(coreDeploymentNamespace).Delete(context.Background(), coreConfigMapName, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed deleting configMap %s", coreConfigMapName)
 		}
+	}
+
+	if err := core.createCoreCredsSecret(c); err != nil {
+		return errors.Wrap(err, "Failed creating secret for Core component")
+	}
+	if err := core.createCoreConfigMap(c, domain); err != nil {
+		return errors.Wrap(err, "Failed creating configMap for Core component")
 	}
 
 	// create new deployment or upgrade existing one
