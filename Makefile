@@ -148,7 +148,7 @@ tools-versions:
 istio-install:
 	@./scripts/istio-minimal-install.sh
 
-knative-install: istio-install
+knative-install:
 	@./scripts/knative-install.sh
 
 cert-manager-install:
@@ -157,7 +157,7 @@ cert-manager-install:
 kfserving-install: knative-install cert-manager-install
 	@./scripts/kfserving-install.sh
 
-seldon-install: istio-install
+seldon-install:
 	@./scripts/seldon-operator-install.sh
 
 ########################################################################
