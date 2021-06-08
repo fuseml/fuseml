@@ -76,10 +76,10 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	deployment := deployments.Traefik{Timeout: DefaultTimeoutSec}
+	deployment := deployments.Istio{Timeout: DefaultTimeoutSec}
 
 	details.Info("deploy", "Deployment", deployment.ID())
-	deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
+	err = deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Core{Timeout: DefaultTimeoutSec},
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
-		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+		&deployments.Istio{Timeout: DefaultTimeoutSec},
 	} {
 		details.Info("remove", "Deployment", deployment.ID())
 		err := deployment.Delete(c.kubeClient, c.ui)
