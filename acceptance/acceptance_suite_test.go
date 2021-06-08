@@ -83,6 +83,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
+	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
+	installFuseml()
+
 	if serve == "knative" {
 		fmt.Printf("Installing Knative on node %d\n", config.GinkgoConfig.ParallelNode)
 		installKnative()
@@ -98,8 +101,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		installSeldon()
 	}
 
-	fmt.Printf("Installing FuseML on node %d\n", config.GinkgoConfig.ParallelNode)
-	installFuseml()
 	upgradeFuseml()
 })
 
