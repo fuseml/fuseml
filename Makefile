@@ -46,9 +46,6 @@ build: embed_files lint build-installer
 build-installer:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags '$(LDFLAGS)' -o dist/fuseml-installer
 
-build-small:
-	@$(MAKE) LDFLAGS+="-s -w" build-installer
-
 test: embed_files
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
@@ -115,7 +112,7 @@ help:
 # Embed files, run linter and build release-ready archived binaries for all supported ARCHs and OSs
 release: embed_files lint release-all
 
-release-installer: build-small
+release-installer: build-installer
 	tar zcf dist/fuseml-installer-$(GOOS)-$(GOARCH).tar.gz -C dist/ --remove-files --transform="s#\.\/##" ./fuseml-installer
 	cd dist && sha256sum -b fuseml-installer-$(GOOS)-$(GOARCH).tar.gz > fuseml-installer-$(GOOS)-$(GOARCH).tar.gz.sha256
 
