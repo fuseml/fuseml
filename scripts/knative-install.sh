@@ -12,6 +12,8 @@ kubectl apply --filename https://github.com/knative/serving/releases/download/${
 kubectl apply --filename https://github.com/knative/serving/releases/download/${KNATIVE_VERSION}/serving-core.yaml
 kubectl apply --filename https://github.com/knative/net-istio/releases/download/${KNATIVE_VERSION}/release.yaml
 
+kubectl wait --for=condition=available --timeout=600s deployment/controller -n knative-serving
+
 # Set the knative default revision timeout from 5 minutes to 1 minute as this
 # value is used as temrinationGracePeriod on the pod and it is making deleting
 # knative services take at least 5 minutes.
@@ -26,8 +28,6 @@ metadata:
 data:
   revision-timeout-seconds: "60"
 EOF
-
-kubectl wait --for=condition=available --timeout=600s deployment/controller -n knative-serving
 
 # Patch the KNative domain configuration with the domain pointing to the Istio ingress gateway.
 # This is computed as follows:
