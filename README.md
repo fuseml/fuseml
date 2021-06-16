@@ -56,3 +56,15 @@ The basic FuseML workflow can be described as an MLOps type of workflow that sta
 * KFServing
 * KNative Serving (coming soon)
 * Seldon Core (coming soon)
+
+## Project Layout
+
+This repository contains the code for the FuseML installer and is the main project repository. Other repositories of interest are:
+
+* https://github.com/fuseml/fuseml-core - the FuseML core service and CLI
+* https://github.com/fuseml/examples - collection of sample ML applications and workflows that can be used to showcase FuseML capabilities 
+* https://github.com/fuseml/extensions - collection of FuseML extensions adapting 3rd party AI/ML tools to the FuseML MLOps workflow mechanisms
+* https://github.com/fuseml/docs - main documentation for the project 
+* https://github.com/fuseml/fuseml.github.io - sources for the FuseML website 
+* https://github.com/fuseml/wiki - staging for the wiki pages 
+
