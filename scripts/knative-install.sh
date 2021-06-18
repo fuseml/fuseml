@@ -12,7 +12,7 @@ kubectl apply --filename https://github.com/knative/serving/releases/download/${
 kubectl apply --filename https://github.com/knative/serving/releases/download/${KNATIVE_VERSION}/serving-core.yaml
 kubectl apply --filename https://github.com/knative/net-istio/releases/download/${KNATIVE_VERSION}/release.yaml
 
-kubectl wait --for=condition=available --timeout=600s deployment/controller -n knative-serving
+kubectl wait --for=condition=available --timeout=600s deployment --all -n knative-serving
 
 # Set the knative default revision timeout from 5 minutes to 1 minute as this
 # value is used as temrinationGracePeriod on the pod and it is making deleting
