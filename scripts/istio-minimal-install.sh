@@ -30,11 +30,13 @@ spec:
         autoInject: disabled
       useMCP: false
 
-  addonComponents:
-    pilot:
-      enabled: true
-
   components:
+    pilot:
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
     ingressGateways:
       - name: istio-ingressgateway
         enabled: true
