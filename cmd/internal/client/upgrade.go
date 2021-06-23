@@ -10,7 +10,7 @@ import (
 var upgradeOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "system_domain",
-		Description: "The domain you are planning to use for FuseML. Should be pointing to the load balancer public IP (Leave empty to use a omg.howdoi.website domain).",
+		Description: "The domain you are planning to use for FuseML. Should be pointing to the load balancer public IP (Leave empty to use a nip.io domain).",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",

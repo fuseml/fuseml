@@ -84,7 +84,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		return err
 	}
 
-	// Try to give a omg.howdoi.website domain if the user didn't specify one
+	// Try to give a nip.io domain if the user didn't specify one
 	domain, err := options.GetOpt("system_domain", "")
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		return err
 	}
 	if domain.Value.(string) == "" {
-		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
+		return errors.New("You didn't provide a system_domain and we were unable to setup a nip.io domain (couldn't find an ExternalIP)")
 	}
 	if c.kubeClient.HasKnative() {
 		err = c.setDomainForKnative(domain.Value.(string))
@@ -233,7 +233,7 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 		}
 
 		if ip != "" {
-			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+			domain.Value = fmt.Sprintf("%s.nip.io", ip)
 		}
 
 	}
