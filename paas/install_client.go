@@ -128,8 +128,41 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		return err
 	}
 
+	extensions, err := options.GetOpt("extensions", "")
+	if err != nil {
+		return err
+	}
+	if err := c.InstallExtensions(extensions.Value.([]string), options); err != nil {
+		return err
+	}
+
 	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("FuseML installed.")
 
+	return nil
+}
+
+// InstallExtensions installs all given ML extensions
+func (c *InstallClient) InstallExtensions(extensions []string, options *kubernetes.InstallationOptions) error {
+	if len(extensions) == 0 {
+		return nil
+	}
+	for _, name := range extensions {
+		c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", name))
+
+		// TODO this needs to be configurable
+		repository := config.DefaultExtensionsLocation()
+		extension := deployments.NewExtension(name, repository)
+
+		err := extension.LoadDescription()
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to load description of extension %s: %s", name, err.Error()))
+		}
+
+		err = extension.Install(c.kubeClient, c.ui, options)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to install extension %s: %s", name, err.Error()))
+		}
+	}
 	return nil
 }
 
