@@ -12,7 +12,7 @@ import (
 
 var (
 	defaultConfigFilePath       = os.ExpandEnv("${HOME}/.config/fuseml/config.yaml")
-	defaultExtensionsRepository = "https://github.com/fuseml/extensions"
+	defaultExtensionsRepository = "https://raw.githubusercontent.com/fuseml/extensions/main/installer/"
 )
 
 // Config represents a fuseml config
