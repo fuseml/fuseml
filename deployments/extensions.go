@@ -17,26 +17,36 @@ import (
 
 const (
 	defaultDescriptionFileName = "description.yaml"
+	defaultNamespace           = "fuseml-workloads"
 	tmpSubDir                  = "fuseml-extension"
 )
 
-type installInstruction struct {
-	Type     string
-	Location string
-	Values   string
+type installStep struct {
+	Type      string
+	Location  string
+	Values    string
+	Namespace string
+}
+
+type istioGateway struct {
+	Name        string
+	Port        int
+	ServiceHost string
 }
 
 type extensionDesc struct {
 	Name        string
 	Description string
 	Namespace   string
-	Install     []installInstruction
-	Uninstall   []installInstruction
+	Install     []installStep
+	Uninstall   []installStep
+	Gateways    []istioGateway
 }
 
 type Extension struct {
 	Name       string
 	Repository string
+	Debug      bool
 	desc       *extensionDesc
 }
 
@@ -45,11 +55,12 @@ func NewExtension(name, repository string) *Extension {
 		Name:       name,
 		Repository: repository,
 		desc:       &extensionDesc{},
+		Debug:      false,
 	}
 }
 
 // LoadDescription finds the description file of the extension and loads it into the struct
-func (e Extension) LoadDescription() error {
+func (e *Extension) LoadDescription() error {
 
 	u, err := url.Parse(e.Repository)
 	if err != nil {
@@ -64,7 +75,6 @@ func (e Extension) LoadDescription() error {
 
 	descFilePath := ""
 
-	fmt.Printf("repo %s, loc %v\n", e.Repository, u)
 	if u.IsAbs() && u.Scheme != "" && u.Host != "" {
 		// "/" at the end is necessary so that last part of the path is not replaced
 		u, _ = u.Parse(e.Name + "/")
@@ -98,22 +108,109 @@ func (e Extension) LoadDescription() error {
 	return nil
 }
 
-func (e Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
+// TODO move under helpers
+func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) error {
 
-	// TODO based on installation type (script/helm/manifest), proceed with installation
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	// TODO installation steps could have different namespaces...
+	tarName := filepath.Base(chartPath)
+	if err = helpers.DownloadFile(chartPath, tarName, tmpDir); err != nil {
+		return errors.Wrap(err, "can't download helm chart for "+name)
+	}
+
+	chartLocalPath := filepath.Join(tmpDir, tarName)
+	valuesLocalPath := ""
+
+	if valuesPath != "" {
+		// FIXME valuesPath might be relative!
+		if err = helpers.DownloadFile(valuesPath, "values.yaml", tmpDir); err != nil {
+			return errors.Wrap(err, "can't download values.yaml for "+name)
+		}
+		valuesLocalPath = filepath.Join(tmpDir, "values.yaml")
+	}
+
+	helmCmd := fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
+		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
+	}
+
+	return nil
+}
+
+func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
+
+	namespace := e.desc.Namespace
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+	// based on installation type (script/helm/manifest), proceed with installation of each install step
+	for _, step := range e.desc.Install {
+
+		switch step.Type {
+		case "helm":
+			ns := step.Namespace
+			if ns == "" {
+				ns = namespace
+			}
+			err := e.installHelmChart(e.Name, step.Location, ns, step.Values)
+			if err != nil {
+				return errors.Wrap(err, "failed to install helm package from "+step.Location)
+			}
+
+			if step.Namespace != "" && step.Namespace != namespace {
+				err := c.LabelNamespace(
+					step.Namespace,
+					kubernetes.FusemlDeploymentLabelKey,
+					kubernetes.FusemlDeploymentLabelValue)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
 
 	if e.desc.Namespace != "" {
-		if err := c.LabelNamespace(e.desc.Namespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue); err != nil {
+		err := c.LabelNamespace(
+			e.desc.Namespace,
+			kubernetes.FusemlDeploymentLabelKey,
+			kubernetes.FusemlDeploymentLabelValue)
+		if err != nil {
 			return err
 		}
 	}
 
 	// TODO wait for some pod to exist/run? Extra option in the description file
 
-	// TODO after installation, we might need to create istio ingress gateway! That means extra kubernetes manifest
-	// (or maybe just boolean value indicating right functions are written from here)
+	// create istio gateways if required
+	if c.HasIstio() && len(e.desc.Gateways) > 0 {
+		domain, err := options.GetString("system_domain", "")
+		if err != nil {
+			return errors.New("system_domain value not provided")
+		}
+
+		for _, g := range e.desc.Gateways {
+
+			message := "Creating istio ingress gateway for " + g.Name
+			subdomain := g.Name + "." + domain
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.CreateIstioIngressGateway(g.Name, namespace, subdomain, g.ServiceHost, g.Port)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+
+		}
+	}
 
 	ui.Success().Msg(fmt.Sprintf("%s deployed.", e.Name))
 
