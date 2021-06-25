@@ -17,6 +17,9 @@ func DownloadFile(url, name, directory string) error {
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode == http.StatusNotFound {
+		return errors.New(url + " not found")
+	}
 	defer resp.Body.Close()
 
 	out, err := os.Create(path.Join(directory, name))
