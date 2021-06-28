@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas"
+	"github.com/fuseml/fuseml/cli/paas/config"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -21,6 +22,13 @@ var InstallOptions = kubernetes.InstallationOptions{
 		Type:        kubernetes.ListType,
 		Default:     []string{},
 		Value:       []string{},
+	},
+	{
+		Name:        "extension_repository",
+		Description: "Path to extensions repository. Could be local directory or URL",
+		Type:        kubernetes.StringType,
+		Default:     config.DefaultExtensionsLocation(),
+		Value:       "",
 	},
 }
 

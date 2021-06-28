@@ -15,6 +15,13 @@ var uninstallOptions = kubernetes.InstallationOptions{
 		Default:     []string{},
 		Value:       []string{},
 	},
+	{
+		Name:        "extension_repository",
+		Description: "Path to extensions repository. Could be local directory or URL",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
 }
 
 var CmdUninstall = &cobra.Command{

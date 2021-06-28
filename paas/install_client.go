@@ -145,12 +145,16 @@ func (c *InstallClient) InstallExtensions(extensions []string, options *kubernet
 	if len(extensions) == 0 {
 		return nil
 	}
+
+	extensionRepo, err := options.GetOpt("extension_repository", "")
+	if err != nil {
+		return err
+	}
+
 	for _, name := range extensions {
 		c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", name))
 
-		// TODO this needs to be configurable
-		repository := config.DefaultExtensionsLocation()
-		extension := deployments.NewExtension(name, repository)
+		extension := deployments.NewExtension(name, extensionRepo.Value.(string))
 
 		err := extension.LoadDescription()
 		if err != nil {
