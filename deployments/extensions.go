@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
@@ -142,6 +143,81 @@ func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) err
 		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
 	}
 
+	return nil
+}
+
+func (e *Extension) uninstallHelmChart(ui *ui.UI, name, ns string) error {
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	out, err := helpers.WaitForCommandCompletion(ui, "Removing helm release "+name,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", name, ns)
+			return helpers.RunProc(helmCmd, currentdir, e.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", name)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", name, out)
+		}
+	}
+
+	return nil
+}
+
+func deleteNamespace(c *kubernetes.Cluster, ui *ui.UI, ns string) error {
+
+	_, err := helpers.WaitForCommandCompletion(ui, "Deleting namespace "+ns,
+		func() (string, error) {
+			return "", c.DeleteNamespace(ns)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", ns)
+	}
+	return nil
+}
+
+func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
+
+	namespace := e.desc.Namespace
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
+	for _, step := range e.desc.Uninstall {
+
+		switch step.Type {
+		case "helm":
+			ns := step.Namespace
+			if ns == "" {
+				ns = namespace
+			}
+			// TODO shoud step have a Name too? Could there be multiple helm charts?
+			err := e.uninstallHelmChart(ui, e.Name, ns)
+			if err != nil {
+				return errors.Wrap(err, "failed to uninstall helm release "+e.Name)
+			}
+
+			// delete namespace if it was specific to step
+			if step.Namespace != "" && step.Namespace != namespace {
+				if err := deleteNamespace(c, ui, step.Namespace); err != nil {
+					return err
+				}
+
+			}
+		}
+	}
+	// delete namespace if it was specific to extension
+	if e.desc.Namespace != "" {
+		if err := deleteNamespace(c, ui, e.desc.Namespace); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
