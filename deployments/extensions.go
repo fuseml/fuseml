@@ -145,6 +145,46 @@ func (e *Extension) fetchFile(filePath, tmpDir string) (string, error) {
 	return filepath.Join(e.Repository, e.Name, filePath), nil
 }
 
+func (e *Extension) installManifest(path, ns string) error {
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	manifestLocalPath, err := e.fetchFile(path, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed fetching file from "+path)
+	}
+
+	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s --namespace %s", manifestLocalPath, ns))
+
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
+	}
+	return nil
+}
+
+func (e *Extension) unInstallManifest(path, ns string) error {
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	manifestLocalPath, err := e.fetchFile(path, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed fetching file from "+path)
+	}
+
+	out, err := helpers.Kubectl(fmt.Sprintf("delete --filename %s --namespace %s", manifestLocalPath, ns))
+
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("kubectl delete failed:\n%s", out))
+	}
+	return nil
+}
+
 // TODO move under helpers
 func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) error {
 
@@ -226,25 +266,29 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
 	for _, step := range e.desc.Uninstall {
 
+		ns := step.Namespace
+		if ns == "" {
+			ns = namespace
+		}
 		switch step.Type {
 		case "helm":
-			ns := step.Namespace
-			if ns == "" {
-				ns = namespace
-			}
 			// TODO shoud step have a Name too? Could there be multiple helm charts?
 			err := e.uninstallHelmChart(ui, e.Name, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to uninstall helm release "+e.Name)
 			}
-
-			// delete namespace if it was specific to step
-			if step.Namespace != "" && step.Namespace != namespace {
-				if err := deleteNamespace(c, ui, step.Namespace); err != nil {
-					return err
-				}
-
+		case "manifest":
+			err := e.unInstallManifest(step.Location, ns)
+			if err != nil {
+				return errors.Wrap(err, "failed to uninstall kubernetes manifest from "+step.Location)
 			}
+		}
+		// delete namespace if it was specific to step
+		if step.Namespace != "" && step.Namespace != namespace {
+			if err := deleteNamespace(c, ui, step.Namespace); err != nil {
+				return err
+			}
+
 		}
 	}
 	// delete namespace if it was specific to extension
@@ -262,28 +306,32 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
-	// based on installation type (script/helm/manifest), proceed with installation of each install step
+	// based on installation type (script/helm/manifest), proceed with execution of each install step
 	for _, step := range e.desc.Install {
+		ns := step.Namespace
+		if ns == "" {
+			ns = namespace
+		}
 
 		switch step.Type {
 		case "helm":
-			ns := step.Namespace
-			if ns == "" {
-				ns = namespace
-			}
 			err := e.installHelmChart(e.Name, step.Location, ns, step.Values)
 			if err != nil {
 				return errors.Wrap(err, "failed to install helm package from "+step.Location)
 			}
-
-			if step.Namespace != "" && step.Namespace != namespace {
-				err := c.LabelNamespace(
-					step.Namespace,
-					kubernetes.FusemlDeploymentLabelKey,
-					kubernetes.FusemlDeploymentLabelValue)
-				if err != nil {
-					return err
-				}
+		case "manifest":
+			err := e.installManifest(step.Location, ns)
+			if err != nil {
+				return errors.Wrap(err, "failed to install kubernetes manifest from "+step.Location)
+			}
+		}
+		if step.Namespace != "" && step.Namespace != namespace {
+			err := c.LabelNamespace(
+				step.Namespace,
+				kubernetes.FusemlDeploymentLabelKey,
+				kubernetes.FusemlDeploymentLabelValue)
+			if err != nil {
+				return err
 			}
 		}
 	}
