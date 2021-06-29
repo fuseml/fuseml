@@ -109,6 +109,42 @@ func (e *Extension) LoadDescription() error {
 	return nil
 }
 
+// Pass the path string and return the absolute location of the file
+// If the path is relative, join it with the base repository path; if
+// the path is URL download it and return path to downloaded copy
+func (e *Extension) fetchFile(filePath, tmpDir string) (string, error) {
+
+	// 1, local path is absolute, return right away
+	if filepath.IsAbs(filePath) {
+		return filePath, nil
+	}
+
+	name := filepath.Base(filePath)
+	u, err := url.Parse(filePath)
+	if err != nil {
+		return "", err
+	}
+	// 2. full URL, download and return path to copy
+	if u.IsAbs() && u.Host != "" {
+		if err := helpers.DownloadFile(u.String(), name, tmpDir); err != nil {
+			return "", err
+		}
+		return filepath.Join(tmpDir, name), nil
+	}
+	// 3. relative path to extension URL: adapt URL and download
+	u, err = url.Parse(e.Repository)
+	if u.IsAbs() && u.Host != "" {
+		u, _ = u.Parse(e.Name + "/")
+		u, _ = u.Parse(filePath)
+		if err := helpers.DownloadFile(u.String(), name, tmpDir); err != nil {
+			return "", err
+		}
+		return filepath.Join(tmpDir, name), nil
+	}
+	// 4. relative path to extension local path
+	return filepath.Join(e.Repository, e.Name, filePath), nil
+}
+
 // TODO move under helpers
 func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) error {
 
@@ -127,11 +163,10 @@ func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) err
 	valuesLocalPath := ""
 
 	if valuesPath != "" {
-		// FIXME valuesPath might be relative!
-		if err = helpers.DownloadFile(valuesPath, "values.yaml", tmpDir); err != nil {
-			return errors.Wrap(err, "can't download values.yaml for "+name)
+		valuesLocalPath, err = e.fetchFile(valuesPath, tmpDir)
+		if err != nil {
+			return errors.Wrap(err, "failed fetching file from "+valuesPath)
 		}
-		valuesLocalPath = filepath.Join(tmpDir, "values.yaml")
 	}
 
 	helmCmd := fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
