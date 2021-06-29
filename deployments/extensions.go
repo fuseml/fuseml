@@ -145,6 +145,25 @@ func (e *Extension) fetchFile(filePath, tmpDir string) (string, error) {
 	return filepath.Join(e.Repository, e.Name, filePath), nil
 }
 
+func (e *Extension) executeScript(path string) error {
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	fullCmd, err := e.fetchFile(path, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed fetching file from "+path)
+	}
+
+	if out, err := helpers.RunProc(fullCmd, tmpDir, e.Debug); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Failed running script: %s\n", out))
+	}
+
+	return nil
+}
+
 func (e *Extension) installManifest(path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
@@ -282,6 +301,13 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 			if err != nil {
 				return errors.Wrap(err, "failed to uninstall kubernetes manifest from "+step.Location)
 			}
+		case "script":
+			err := e.executeScript(step.Location)
+			if err != nil {
+				return errors.Wrap(err, "failed to install using "+step.Location)
+			}
+		default:
+			return errors.New("Unsupported step type: " + step.Type)
 		}
 		// delete namespace if it was specific to step
 		if step.Namespace != "" && step.Namespace != namespace {
@@ -324,6 +350,13 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			if err != nil {
 				return errors.Wrap(err, "failed to install kubernetes manifest from "+step.Location)
 			}
+		case "script":
+			err := e.executeScript(step.Location)
+			if err != nil {
+				return errors.Wrap(err, "failed to uninstall using "+step.Location)
+			}
+		default:
+			return errors.New("Unsupported step type: " + step.Type)
 		}
 		if step.Namespace != "" && step.Namespace != namespace {
 			err := c.LabelNamespace(
