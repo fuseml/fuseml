@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/fuseml/config.yaml")
+	defaultConfigFilePath       = os.ExpandEnv("${HOME}/.config/fuseml/config.yaml")
+	defaultExtensionsRepository = "https://raw.githubusercontent.com/fuseml/extensions/main/installer/"
 )
 
 // Config represents a fuseml config
@@ -21,6 +22,11 @@ type Config struct {
 	Org                      string `mapstructure:"org"`
 
 	v *viper.Viper
+}
+
+// DefaultExtensionsLocation returns the default location of extensions repository
+func DefaultExtensionsLocation() string {
+	return defaultExtensionsRepository
 }
 
 // DefaultLocation returns the standard location for the configuration file

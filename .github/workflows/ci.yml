@@ -118,7 +118,7 @@ jobs:
       - name: Install FuseML
         run: |
           ./dist/fuseml-installer version
-          make fuseml-install
+          make fuseml-install-with-mlflow
 
       - name: Install KFServing
         run: make kfserving-install

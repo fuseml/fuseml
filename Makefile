@@ -175,7 +175,10 @@ mlflow-e2e:
 fuseml-install:
 	@./dist/fuseml-installer install
 
-test-mlflow-e2e: build new-test-cluster fuseml-install kfserving-install mlflow-e2e delete-test-cluster
+fuseml-install-with-mlflow:
+	@./dist/fuseml-installer install --extensions mlflow
+
+test-mlflow-e2e: build new-test-cluster fuseml-install-with-mlflow kfserving-install mlflow-e2e delete-test-cluster
 
 
 ########################################################################

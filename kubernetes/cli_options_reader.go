@@ -16,6 +16,19 @@ func NewCLIOptionsReader(cmd *cobra.Command) CLIOptionsReader {
 	return CLIOptionsReader{cmd: cmd}
 }
 
+// combare given string slices
+func equalSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Queries the cobra command for a flag associated with the given
 // InstallationOption and returns its value converted to the
 // appropriate (Go) type as defined by the Type field of the
@@ -52,6 +65,9 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 	case StringType:
 		cliValue, err = reader.cmd.Flags().GetString(flagName)
 		cliValid = (err == nil) && (cliValue.(string) != option.Default.(string))
+	case ListType:
+		cliValue, err = reader.cmd.Flags().GetStringSlice(flagName)
+		cliValid = (err == nil) && !equalSlices(cliValue.([]string), option.Default.([]string))
 	case IntType:
 		cliValue, err = reader.cmd.Flags().GetInt(flagName)
 		cliValid = (err == nil) && (cliValue.(int) != option.Default.(int))

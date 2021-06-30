@@ -3,16 +3,31 @@ package client
 import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas"
+	"github.com/fuseml/fuseml/cli/paas/config"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-var NeededOptions = kubernetes.InstallationOptions{
+var InstallOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "system_domain",
 		Description: "The domain you are planning to use for FuseML. Should be pointing to the traefik public IP (Leave empty to use a nip.io domain).",
 		Type:        kubernetes.StringType,
 		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "extensions",
+		Description: "ML extensions to install together with FuseML",
+		Type:        kubernetes.ListType,
+		Default:     []string{},
+		Value:       []string{},
+	},
+	{
+		Name:        "extension_repository",
+		Description: "Path to extensions repository. Could be local directory or URL",
+		Type:        kubernetes.StringType,
+		Default:     config.DefaultExtensionsLocation(),
 		Value:       "",
 	},
 }
@@ -34,7 +49,7 @@ var CmdInstall = &cobra.Command{
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
-	NeededOptions.AsCobraFlagsFor(CmdInstall)
+	InstallOptions.AsCobraFlagsFor(CmdInstall)
 }
 
 // Install command installs fuseml on a configured cluster
@@ -50,7 +65,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = install_client.Install(cmd, &NeededOptions)
+	err = install_client.Install(cmd, &InstallOptions)
 	if err != nil {
 		return errors.Wrap(err, "error installing FuseML")
 	}

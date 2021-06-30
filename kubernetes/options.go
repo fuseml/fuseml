@@ -12,6 +12,7 @@ const (
 	BooleanType = iota
 	StringType
 	IntType
+	ListType
 )
 
 // OptionsReader is the interface to the structures and objects used
@@ -69,6 +70,12 @@ func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
 				cmd.Flags().String(flagName, "", opt.Description)
 			} else {
 				cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+			}
+		case ListType:
+			if opt.Default == nil {
+				cmd.Flags().StringSlice(flagName, []string{}, opt.Description)
+			} else {
+				cmd.Flags().StringSlice(flagName, opt.Default.([]string), opt.Description)
 			}
 		case IntType:
 			if opt.Default == nil {

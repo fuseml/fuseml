@@ -110,7 +110,6 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
-		&deployments.MLflow{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
@@ -123,8 +122,15 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 			return err
 		}
 	}
-
 	if err := downloadFuseMLCLI(c.ui); err != nil {
+		return err
+	}
+
+	extensions, err := options.GetOpt("extensions", "")
+	if err != nil {
+		return err
+	}
+	if err := c.InstallExtensions(extensions.Value.([]string), options); err != nil {
 		return err
 	}
 
@@ -133,12 +139,82 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	return nil
 }
 
+// InstallExtensions installs given ML extensions
+func (c *InstallClient) InstallExtensions(extensions []string, options *kubernetes.InstallationOptions) error {
+	if len(extensions) == 0 {
+		return nil
+	}
+
+	extensionRepo, err := options.GetOpt("extension_repository", "")
+	if err != nil {
+		return err
+	}
+
+	for _, name := range extensions {
+		c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", name))
+
+		extension := deployments.NewExtension(name, extensionRepo.Value.(string))
+
+		err := extension.LoadDescription()
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to load description file of extension %s: %s", name, err.Error()))
+		}
+
+		err = extension.Install(c.kubeClient, c.ui, options)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to install extension %s: %s", name, err.Error()))
+		}
+	}
+	return nil
+}
+
+// UninstallExtensions uninstalls given ML extensions
+func (c *InstallClient) UninstallExtensions(extensions []string, options *kubernetes.InstallationOptions) error {
+
+	if len(extensions) == 0 {
+		return nil
+	}
+	for _, name := range extensions {
+		c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", name))
+
+		repository := config.DefaultExtensionsLocation()
+		extension := deployments.NewExtension(name, repository)
+
+		err := extension.LoadDescription()
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to load description file of extension %s: %s", name, err.Error()))
+		}
+
+		err = extension.Uninstall(c.kubeClient, c.ui, options)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", name, err.Error()))
+		}
+	}
+
+	return nil
+}
+
 // Uninstall removes fuseml from the cluster.
-func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
+func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
 	log := c.Log.WithName("Uninstall")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	var err error
+	details.Info("process cli options")
+	options, err = options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	if err != nil {
+		return err
+	}
+
+	extensions, err := options.GetOpt("extensions", "")
+	if err != nil {
+		return err
+	}
+	if err := c.UninstallExtensions(extensions.Value.([]string), options); err != nil {
+		return err
+	}
 
 	c.ui.Note().Msg("FuseML uninstalling...")
 
