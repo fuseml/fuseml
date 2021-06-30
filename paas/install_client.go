@@ -193,6 +193,14 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
+	details.Info("fill defaults into options")
+	options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
+	if err != nil {
+		return err
+	}
+
+	details.Info("show option configuration")
+	c.showInstallConfiguration(options)
 
 	extensions, err := options.GetOpt("extensions", "")
 	if err != nil {
