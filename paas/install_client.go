@@ -130,7 +130,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	if err != nil {
 		return err
 	}
-	if err := c.InstallExtensions(extensions.Value.([]string), options); err != nil {
+	if err := c.handleExtensions("install", extensions.Value.([]string), options); err != nil {
 		return err
 	}
 
@@ -139,8 +139,9 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	return nil
 }
 
-// InstallExtensions installs given ML extensions
-func (c *InstallClient) InstallExtensions(extensions []string, options *kubernetes.InstallationOptions) error {
+// install or uninstall given list of extensions
+func (c *InstallClient) handleExtensions(action string, extensions []string, options *kubernetes.InstallationOptions) error {
+
 	if len(extensions) == 0 {
 		return nil
 	}
@@ -151,7 +152,7 @@ func (c *InstallClient) InstallExtensions(extensions []string, options *kubernet
 	}
 
 	for _, name := range extensions {
-		c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", name))
+		c.ui.Note().Msg(fmt.Sprintf("Processing extension '%s'...", name))
 
 		extension := deployments.NewExtension(name, extensionRepo.Value.(string))
 
@@ -160,37 +161,22 @@ func (c *InstallClient) InstallExtensions(extensions []string, options *kubernet
 			return errors.New(fmt.Sprintf("Failed to load description file of extension %s: %s", name, err.Error()))
 		}
 
-		err = extension.Install(c.kubeClient, c.ui, options)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to install extension %s: %s", name, err.Error()))
+		switch action {
+		case "install":
+			err = extension.Install(c.kubeClient, c.ui, options)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Failed to install extension %s: %s", name, err.Error()))
+			}
+		case "uninstall":
+			err = extension.Uninstall(c.kubeClient, c.ui, options)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", name, err.Error()))
+			}
+
+		default:
+			return errors.New(fmt.Sprintf("Unsupported action %s", action))
 		}
 	}
-	return nil
-}
-
-// UninstallExtensions uninstalls given ML extensions
-func (c *InstallClient) UninstallExtensions(extensions []string, options *kubernetes.InstallationOptions) error {
-
-	if len(extensions) == 0 {
-		return nil
-	}
-	for _, name := range extensions {
-		c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", name))
-
-		repository := config.DefaultExtensionsLocation()
-		extension := deployments.NewExtension(name, repository)
-
-		err := extension.LoadDescription()
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to load description file of extension %s: %s", name, err.Error()))
-		}
-
-		err = extension.Uninstall(c.kubeClient, c.ui, options)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", name, err.Error()))
-		}
-	}
-
 	return nil
 }
 
@@ -212,7 +198,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
-	if err := c.UninstallExtensions(extensions.Value.([]string), options); err != nil {
+	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options); err != nil {
 		return err
 	}
 
