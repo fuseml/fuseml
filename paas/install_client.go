@@ -154,7 +154,7 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 	for _, name := range extensions {
 		c.ui.Note().Msg(fmt.Sprintf("Processing extension '%s'...", name))
 
-		extension := deployments.NewExtension(name, extensionRepo.Value.(string))
+		extension := deployments.NewExtension(name, extensionRepo.Value.(string), DefaultTimeoutSec)
 
 		err := extension.LoadDescription()
 		if err != nil {
