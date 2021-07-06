@@ -10,6 +10,7 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -24,6 +25,16 @@ const (
 	WorkloadsIngressVersion = "0.1"
 	appIngressYamlPath      = "app-ingress.yaml"
 )
+
+var roleRules = []rbacv1.PolicyRule{{
+	APIGroups: []string{""},
+	Resources: []string{"secrets", "serviceaccounts"},
+	Verbs:     []string{"get", "create", "patch"},
+}, {
+	APIGroups: []string{"serving.kubeflow.org"},
+	Resources: []string{"inferenceservices"},
+	Verbs:     []string{"get", "list", "create", "patch", "watch"},
+}}
 
 func (k *Workloads) ID() string {
 	return WorkloadsDeploymentID
@@ -154,6 +165,12 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI, op
 	if err := w.createWorkloadsServiceAccountWithSecretAccess(c); err != nil {
 		return err
 	}
+	if err := w.createWorkloadsRole(c); err != nil {
+		return err
+	}
+	if err := w.createWorkloadsRoleBinding(c); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -229,15 +246,45 @@ func (w Workloads) createGiteaCredsSecret(c *kubernetes.Cluster, options kuberne
 }
 
 func (w Workloads) createWorkloadsServiceAccountWithSecretAccess(c *kubernetes.Cluster) error {
-	automountServiceAccountToken := false
+	automountServiceAccountToken := true
 	_, err := c.Kubectl.CoreV1().ServiceAccounts(WorkloadsDeploymentID).Create(
 		context.Background(),
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: WorkloadsDeploymentID,
 			},
+			Secrets:                      []corev1.ObjectReference{{Name: "gitea-creds"}},
 			AutomountServiceAccountToken: &automountServiceAccountToken,
 		}, metav1.CreateOptions{})
 
+	return err
+}
+
+func (w Workloads) createWorkloadsRole(c *kubernetes.Cluster) error {
+	_, err := c.Kubectl.RbacV1().Roles(WorkloadsDeploymentID).Create(
+		context.Background(),
+		&rbacv1.Role{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: WorkloadsDeploymentID,
+			},
+			Rules: roleRules,
+		}, metav1.CreateOptions{})
+	return err
+}
+
+func (w Workloads) createWorkloadsRoleBinding(c *kubernetes.Cluster) error {
+	_, err := c.Kubectl.RbacV1().RoleBindings(WorkloadsDeploymentID).Create(
+		context.Background(),
+		&rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: WorkloadsDeploymentID,
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "Role",
+				Name:     WorkloadsDeploymentID,
+			},
+			Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: WorkloadsDeploymentID, Namespace: WorkloadsDeploymentID}},
+		}, metav1.CreateOptions{})
 	return err
 }

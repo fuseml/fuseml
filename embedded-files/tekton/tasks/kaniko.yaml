@@ -28,7 +28,8 @@ spec:
     description: The build context used by Kaniko.
     default: ./
   - name: EXTRA_ARGS
-    default: "--insecure"
+    default: ["--insecure"]
+    type: array
   - name: BUILDER_IMAGE
     description: The image on which builds will run (default is v1.6.0)
     default: gcr.io/kaniko-project/executor:v1.6.0@sha256:0fae223f496525e31226cde473ec77ed15abfa8cbabff5ff5bf1c5268355bbb0
