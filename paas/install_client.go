@@ -108,7 +108,6 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
 	for _, deployment := range []kubernetes.Deployment{
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
@@ -224,7 +223,6 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Core{Timeout: DefaultTimeoutSec},
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Istio{Timeout: DefaultTimeoutSec},
 	} {
 		details.Info("remove", "Deployment", deployment.ID())

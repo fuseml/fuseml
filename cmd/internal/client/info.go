@@ -12,7 +12,7 @@ var ()
 var CmdInfo = &cobra.Command{
 	Use:   "info",
 	Short: "Shows information about the Fuseml environment",
-	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks.`,
+	Long:  `Shows status and version for Kubernetes, Gitea, Tekton.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewFusemlClient(cmd.Flags(), nil)
 		defer func() {

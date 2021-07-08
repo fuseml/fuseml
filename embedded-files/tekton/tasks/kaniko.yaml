@@ -28,7 +28,7 @@ spec:
     description: The build context used by Kaniko.
     default: ./
   - name: EXTRA_ARGS
-    default: "--skip-tls-verify"
+    default: "--insecure"
   - name: BUILDER_IMAGE
     description: The image on which builds will run (default is v1.5.1)
     default: gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5
