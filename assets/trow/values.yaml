@@ -26,9 +26,16 @@ nameOverride: ""
 fullnameOverride: ""
 
 
-service:
-  type: NodePort
-  port: 8000
+services:
+  nodePort:
+    - name: registry
+      port: 5000
+      targetPort: http
+      nodePort: 30500
+  clusterIP:
+    - name: registry
+      port: 80
+      targetPort: http
 
 ingress:
   enabled: false
