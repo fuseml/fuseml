@@ -63,7 +63,7 @@ print_bold "➤ Assign Workflow:"
 ./fuseml workflow assign --name mlflow-sklearn-e2e --codeset-name mlflow-wines --codeset-project mlflow-project-01
 ./fuseml workflow list-runs --name mlflow-sklearn-e2e
 
-retries=61
+retries=121
 print_bold "⏱  Waiting $(((retries-1)*15/60))m for the workflow run to finish..."
 run_name=$(./fuseml workflow list-runs --name mlflow-sklearn-e2e --format json | jq -r ".[0].name")
 for i in $(seq ${retries}); do
