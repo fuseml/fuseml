@@ -53,10 +53,6 @@ metadata:
   namespace: fuseml-workloads
 secrets:
   - name: gitea-creds
-  - name: registry-creds
-imagePullSecrets:
-  - name: registry-creds
-  - name: gitea-creds
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

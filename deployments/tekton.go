@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
@@ -151,32 +150,9 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 	}
 
-	message := "Creating registry certificates in fuseml-workloads"
-	out, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			out1, err := helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					return helpers.Kubectl("get secret -n fuseml-workloads registry-tls-self-ca")
-				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
-			if err != nil {
-				return out1, err
-			}
-
-			out2, err := helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					return helpers.Kubectl("get secret -n fuseml-workloads registry-tls-self")
-				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
-
-			return fmt.Sprintf("%s\n%s", out1, out2), err
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
 	for _, task := range fuseMLTasks {
-		message = fmt.Sprintf("Installing FuseML task: %s", task)
-		out, err = helpers.WaitForCommandCompletion(ui, message,
+		message := fmt.Sprintf("Installing FuseML task: %s", task)
+		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				return helpers.KubectlApplyEmbeddedYaml(fmt.Sprintf("%s/%s.yaml", tektonFuseMLTasksYamlPath, task))
 			},
@@ -186,12 +162,15 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 
 	}
+
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
+
+	var message string
 	if c.HasIstio() {
-		message := "Creating Tekton dashboard istio ingress gateway"
+		message = "Creating Tekton dashboard istio ingress gateway"
 		_, err = helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				return helpers.CreateIstioIngressGateway("tekton", tektonNamespace, TektonDeploymentID+"."+domain, "tekton-dashboard", 9097)

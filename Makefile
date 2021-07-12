@@ -85,9 +85,8 @@ gitlint:
 tools:
 	go get github.com/rakyll/statik
 
-
 update_registry:
-	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
+	helm package ./assets/trow/ -d embedded-files
 
 update_mlflow:
 	helm package ./assets/mlflow/ -d embedded-files

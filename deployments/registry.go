@@ -11,7 +11,6 @@ import (
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -22,8 +21,8 @@ type Registry struct {
 
 const (
 	RegistryDeploymentID = "fuseml-registry"
-	registryVersion      = "0.1.0"
-	registryChartFile    = "container-registry-0.1.0.tgz"
+	registryVersion      = "0.3.2"
+	registryChartFile    = "trow-0.3.2.tgz"
 )
 
 func (k *Registry) ID() string {
@@ -110,17 +109,26 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		}
 	}
 
-	if err = createQuarksMonitoredNamespace(c, RegistryDeploymentID); err != nil {
-		return err
-	}
-
 	tarPath, err := helpers.ExtractFile(registryChartFile)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, RegistryDeploymentID, RegistryDeploymentID, tarPath)
+	config := fmt.Sprintf(`
+trow:
+  domain: registry.%s
+
+fullnameOverride: registry
+`, RegistryDeploymentID)
+
+	configPath, err := helpers.CreateTmpFile(config)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(configPath)
+
+	helmCmd := fmt.Sprintf("helm %s %s --values %s --create-namespace --namespace %s %s", action, RegistryDeploymentID, configPath, RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
 	}
@@ -129,10 +137,10 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	if err != nil {
 		return err
 	}
-	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=trow", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=trow", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
@@ -179,21 +187,4 @@ func (k Registry) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.I
 	ui.Note().Msg("Upgrading Registry...")
 
 	return k.apply(c, ui, options, true)
-}
-
-func createQuarksMonitoredNamespace(c *kubernetes.Cluster, name string) error {
-	_, err := c.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-				Labels: map[string]string{
-					"quarks.cloudfoundry.org/monitored": "quarks-secret",
-				},
-			},
-		},
-		metav1.CreateOptions{},
-	)
-
-	return err
 }
