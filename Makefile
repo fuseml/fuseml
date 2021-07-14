@@ -1,7 +1,5 @@
-# Tekton components version
-TEKTON_PIPELINE_VERSION=v0.22.0
-TEKTON_TRIGGERS_VERSION=v0.12.1
-TEKTON_DASHBOARD_VERSION=v0.15.0
+# Tekton operator version
+TEKTON_OPERATOR_VERSION=v0.23.0-2
 
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
@@ -94,10 +92,9 @@ update_mlflow:
 update_charts: update_registry update_mlflow
 
 update_tekton:
-	mkdir -p embedded-files/tekton
-	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/${TEKTON_PIPELINE_VERSION}/release.yaml -O embedded-files/tekton/pipeline-${TEKTON_PIPELINE_VERSION}.yaml
-	wget https://storage.googleapis.com/tekton-releases/triggers/previous/${TEKTON_TRIGGERS_VERSION}/release.yaml -O embedded-files/tekton/triggers-${TEKTON_TRIGGERS_VERSION}.yaml
-	wget https://github.com/tektoncd/dashboard/releases/download/${TEKTON_DASHBOARD_VERSION}/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-${TEKTON_DASHBOARD_VERSION}.yaml
+	mkdir -p embedded-files/tekton/install
+	wget https://github.com/tektoncd/operator/releases/download/${TEKTON_OPERATOR_VERSION}/release.yaml -O embedded-files/tekton/operator.yaml
+	wget https://raw.githubusercontent.com/tektoncd/operator/${TEKTON_OPERATOR_VERSION}/config/crs/kubernetes/config/all/operator_v1alpha1_config_cr.yaml -O embedded-files/tekton/profile-all.yaml
 
 embed_files: tools
 	statik -m -f -src=./embedded-files

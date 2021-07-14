@@ -119,6 +119,16 @@ func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalFuncWithSt
 	return funk()
 }
 
+// WaitForKubernetesResourceToExist waits for a kubernetes resource to exist for 'timeout' seconds
+func WaitForKubernetesResourceToExist(ui *ui.UI, namespace, kind, name string, timeout int) (string, error) {
+	s := ui.Progressf(" Waiting for %s %s", kind, name)
+	defer s.Stop()
+
+	return ExecToSuccessWithTimeout(func() (string, error) {
+		return Kubectl(fmt.Sprintf("get %s %s -n %s", kind, name, namespace))
+	}, time.Duration(timeout)*time.Second, time.Second)
+}
+
 // ExecToSuccessWithTimeout retries the given function with stirng & error return,
 // until it either succeeds of the timeout is reached. It retries every "interval" duration.
 func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval time.Duration) (string, error) {
@@ -144,7 +154,7 @@ func RunToSuccessWithTimeout(funk ExternalFunc, timeout, interval time.Duration)
 	for {
 		select {
 		case <-timeoutChan:
-			return fmt.Errorf("Timed out after %s", timeout.String())
+			return fmt.Errorf("timed out after %s", timeout.String())
 		default:
 			if err := funk(); err != nil {
 				time.Sleep(interval)

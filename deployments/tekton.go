@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
@@ -23,13 +24,12 @@ type Tekton struct {
 }
 
 const (
-	TektonDeploymentID        = "tekton"
-	tektonNamespace           = "tekton-pipelines"
-	tektonPipelineYamlPath    = "tekton/install/pipeline-v0.22.0.yaml"
-	tektonTriggersYamlPath    = "tekton/install/triggers-v0.12.1.yaml"
-	tektonDashboardYamlPath   = "tekton/install/dashboard-v0.15.0.yaml"
-	tektonAdminRoleYamlPath   = "tekton/install/admin-role.yaml"
-	tektonFuseMLTasksYamlPath = "tekton/tasks"
+	TektonDeploymentID            = "tekton-pipelines"
+	tektonOperatorNamespace       = "tekton-operator"
+	tektonOperatorYamlPath        = "tekton/install/operator.yaml"
+	tektonOperatorProfileYamlPath = "tekton/install/profile-all.yaml"
+	tektonTriggersSAYamlPath      = "tekton/install/sa.yaml"
+	tektonFuseMLTasksYamlPath     = "tekton/tasks"
 )
 
 var fuseMLTasks = []string{"clone", "kaniko", "builder-prep"}
@@ -47,107 +47,194 @@ func (k *Tekton) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 }
 
 func (k Tekton) Describe() string {
-	return emoji.Sprintf(":cloud:Tekton pipeline: %s\n:cloud:Tekton dashboard: %s\n:cloud:Tekton triggers: %s\n",
-		tektonPipelineYamlPath, tektonDashboardYamlPath, tektonTriggersYamlPath)
+	return emoji.Sprintf(":cloud:Tekton Operator: %s\n:cloud:Tekton Operator Profile: %s\n",
+		tektonOperatorYamlPath, tektonOperatorProfileYamlPath)
 }
 
 // Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(tektonNamespace)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", tektonNamespace)
-	}
-	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Fuseml")
-		return nil
+	wasDeleted := false
+	namespaces := []string{TektonDeploymentID, tektonOperatorNamespace}
+
+	for _, ns := range namespaces {
+		existsAndOwned, err := c.NamespaceExistsAndOwned(ns)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", ns)
+		}
+		if !existsAndOwned {
+			ui.Exclamation().Msg(fmt.Sprintf("Skipping %s because namespace either doesn't exist or not owned by FuseML", ns))
+		} else {
+			var yamlFile string
+			if ns == TektonDeploymentID {
+				yamlFile = tektonOperatorProfileYamlPath
+			} else {
+				yamlFile = tektonOperatorYamlPath
+			}
+			if out, err := helpers.KubectlDeleteEmbeddedYaml(yamlFile, true); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", yamlFile, out))
+			}
+			// wait for sa, roles and tekton-[pipelines|triggers|dashboard] to be deleted before deleting operator
+			if ns == TektonDeploymentID {
+				message := "Deleting Tekton triggers Service Account and Roles"
+				out, err := helpers.WaitForCommandCompletion(ui, message,
+					func() (string, error) {
+						return helpers.KubectlDeleteEmbeddedYaml(tektonTriggersSAYamlPath, true)
+					},
+				)
+				if err != nil {
+					return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+				}
+
+				message = "Waiting for tekton to be deleted"
+				out, err = helpers.WaitForCommandCompletion(ui, message,
+					func() (string, error) {
+						return helpers.Kubectl(fmt.Sprintf("wait --for=delete --timeout=%ds -n %s tektonconfig/config",
+							k.Timeout, TektonDeploymentID))
+					},
+				)
+				if err != nil && strings.HasSuffix(out, "not found") {
+					return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+				}
+			}
+
+			message := fmt.Sprintf("Deleting %s namespace", ns)
+			_, err = helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return "", c.DeleteNamespace(ns)
+				},
+			)
+			if err != nil {
+				return errors.Wrapf(err, "Failed deleting namespace %s", ns)
+			}
+			wasDeleted = true
+		}
 	}
 
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
+	if wasDeleted {
+		ui.Success().Msg("Tekton removed")
 	}
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
-	}
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersYamlPath, out))
-	}
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineYamlPath, out))
-	}
-
-	message := "Deleting Tekton namespace " + tektonNamespace
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", c.DeleteNamespace(tektonNamespace)
-		},
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
-	}
-
-	ui.Success().Msg("Tekton removed")
 
 	return nil
 }
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
-	}
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineYamlPath, out))
-	}
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonTriggersYamlPath, out))
-	}
-	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonDashboardYamlPath, out))
+
+	installOperator := true
+	if !upgrade {
+		// Install tekton operator only if not already installed
+		_, err := c.Kubectl.CoreV1().Namespaces().Get(
+			context.Background(),
+			tektonOperatorNamespace,
+			metav1.GetOptions{},
+		)
+		if err == nil {
+			ui.Exclamation().Msg("Tekton Operator already present, skipping its installation")
+			installOperator = false
+		}
 	}
 
-	err := c.LabelNamespace(tektonNamespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
+	if installOperator || upgrade {
+		if out, err := helpers.KubectlApplyEmbeddedYaml(tektonOperatorYamlPath); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("installing %s failed:\n%s", tektonOperatorYamlPath, out))
+		}
+
+		err := c.LabelNamespace(tektonOperatorNamespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
+		if err != nil {
+			return err
+		}
+
+		for _, crd := range []string{
+			"tektonaddons.operator.tekton.dev",
+			"tektonconfigs.operator.tekton.dev",
+			"tektondashboards.operator.tekton.dev",
+			"tektonpipelines.operator.tekton.dev",
+			"tektontriggers.operator.tekton.dev",
+		} {
+			message := fmt.Sprintf("Establish CRD %s", crd)
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+		}
+
+		message := "Waiting for tekton-operator pod to be ready"
+		out, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return helpers.Kubectl(fmt.Sprintf("wait --for=condition=Ready --timeout=%ds -n %s --selector=app=tekton-operator pod",
+					k.Timeout, tektonOperatorNamespace))
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+	}
+
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	for _, crd := range []string{
-		"clustertasks.tekton.dev",
-		"clustertriggerbindings.triggers.tekton.dev",
-		"conditions.tekton.dev",
-		"eventlisteners.triggers.tekton.dev",
-		"pipelineresources.tekton.dev",
-		"pipelineruns.tekton.dev",
-		"pipelines.tekton.dev",
-		"runs.tekton.dev",
-		"taskruns.tekton.dev",
-		"tasks.tekton.dev",
-		"triggerbindings.triggers.tekton.dev",
-		"triggers.triggers.tekton.dev",
-		"triggertemplates.triggers.tekton.dev",
-	} {
-		message := fmt.Sprintf("Establish CRD %s", crd)
-		out, err := helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
-			},
-		)
+	if !upgrade {
+		if out, err := helpers.KubectlApplyEmbeddedYaml(tektonOperatorProfileYamlPath); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("installing %s failed:\n%s", tektonOperatorProfileYamlPath, out))
+		}
+
+		out, err := helpers.WaitForKubernetesResourceToExist(ui, TektonDeploymentID, "namespace", TektonDeploymentID, k.Timeout)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			return fmt.Errorf("error waiting for namespace %s: %s", TektonDeploymentID, out)
+		}
+
+		err = c.LabelNamespace(TektonDeploymentID, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
+		if err != nil {
+			return err
+		}
+
+		var message string
+		if c.HasIstio() {
+			message = "Creating Tekton dashboard istio ingress gateway"
+			_, err = helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.CreateIstioIngressGateway("tekton", TektonDeploymentID, "tekton."+domain, "tekton-dashboard", 9097)
+				},
+			)
+		} else {
+			message = "Creating Tekton dashboard ingress"
+			_, err = helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return "", createTektonIngress(c, "tekton."+domain)
+				},
+			)
+		}
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 		}
 	}
 
-	for _, c := range []string{"pipelines", "triggers", "dashboard"} {
-		message := fmt.Sprintf("Starting tekton %s pods", c)
-		out, err := helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return helpers.Kubectl(fmt.Sprintf("wait --for=condition=Ready --timeout=%ds -n %s --selector=app.kubernetes.io/part-of=tekton-%s pod",
-					k.Timeout, tektonNamespace, c))
-			},
-		)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-		}
+	message := "Waiting for tekton to be ready"
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.Kubectl(fmt.Sprintf("wait --for=condition=Ready --timeout=%ds -n %s tektonconfig/config",
+				k.Timeout, TektonDeploymentID))
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Installing Tekton triggers Service Account"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersSAYamlPath)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
 	for _, task := range fuseMLTasks {
@@ -160,32 +247,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 		}
-
-	}
-
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
-	}
-
-	var message string
-	if c.HasIstio() {
-		message = "Creating Tekton dashboard istio ingress gateway"
-		_, err = helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return helpers.CreateIstioIngressGateway("tekton", tektonNamespace, TektonDeploymentID+"."+domain, "tekton-dashboard", 9097)
-			},
-		)
-	} else {
-		message = "Creating Tekton dashboard ingress"
-		_, err = helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return "", createTektonIngress(c, TektonDeploymentID+"."+domain)
-			},
-		)
-	}
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
 	ui.Success().Msg(fmt.Sprintf("Tekton deployed (http://tekton.%s).", domain))
@@ -194,8 +255,18 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 }
 
 func (k Tekton) GetVersion() string {
-	return fmt.Sprintf("pipelines: %s, triggers %s, dashboard: %s",
-		tektonPipelineYamlPath, tektonTriggersYamlPath, tektonDashboardYamlPath)
+	versions := map[string]string{}
+	for _, c := range []string{"pipeline", "trigger", "dashboard"} {
+		version, err := helpers.Kubectl(fmt.Sprintf("get tekton%ss %s -o jsonpath='{.status.version}')", c, c))
+		if err != nil {
+			versions[c] = "Unknown"
+		} else {
+			versions[c] = version
+		}
+	}
+
+	return fmt.Sprintf("pipelines: %s, triggers: %s, dashboard: %s",
+		versions["pipeline"], versions["trigger"], versions["dashboard"])
 }
 
 func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
@@ -236,7 +307,7 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 }
 
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
-	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
+	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(TektonDeploymentID).Create(
 		context.Background(),
 		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
 		// Like this (which has been reverted):
@@ -244,7 +315,7 @@ func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 		&v1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "tekton-dashboard",
-				Namespace: "tekton-pipelines",
+				Namespace: TektonDeploymentID,
 				Annotations: map[string]string{
 					"kubernetes.io/ingress.class": "traefik",
 				},
