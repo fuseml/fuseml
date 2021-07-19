@@ -5,7 +5,7 @@ if kubectl get svc cert-manager -n cert-manager >/dev/null 2>&1 ; then
   exit
 fi
 
-export CERT_MANAGER_VERSION=v1.2.0
+export CERT_MANAGER_VERSION=v1.4.0
 
 # Install Cert Manager
 kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml

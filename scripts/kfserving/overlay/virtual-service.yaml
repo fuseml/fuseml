@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: kfserving-models-web-app
+spec:
+  http:
+    - match:
+        - headers:
+            ':authority':
+              regex: kfserving.*
+      route:
+        - destination:
+            host: kfserving-models-web-app.kfserving-system.svc.cluster.local
+            port:
+              number: 80
