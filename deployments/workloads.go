@@ -227,9 +227,7 @@ func (w Workloads) createGiteaCredsSecret(c *kubernetes.Cluster, options kuberne
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "gitea-creds",
 				Annotations: map[string]string{
-					//"kpack.io/git": fmt.Sprintf("http://%s.%s", GiteaDeploymentID, domain),
-					"tekton.dev/git-0": "http://gitea-http.gitea:10080", // TODO: Don't hardcode
-					"tekton.dev/git-1": fmt.Sprintf("http://%s", giteaSubdomain),
+					"tekton.dev/git-0": fmt.Sprintf("http://%s", giteaSubdomain),
 				},
 			},
 			StringData: map[string]string{

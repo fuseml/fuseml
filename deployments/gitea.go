@@ -21,8 +21,8 @@ type Gitea struct {
 
 const (
 	GiteaDeploymentID = "gitea"
-	giteaVersion      = "2.1.3"
-	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
+	giteaVersion      = "1.14.3"
+	giteaChartURL     = "https://dl.gitea.io/charts/gitea-4.0.1.tgz"
 )
 
 func (k *Gitea) ID() string {
@@ -123,17 +123,12 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 ingress:
   enabled: %t
   hosts:
-    - %s
+    - host: %s
+      paths:
+       - path: /
+         pathType: Prefix
   annotations:
     kubernetes.io/ingress.class: traefik
-service:
-  http:
-    type: NodePort
-    port: 10080
-  ssh:
-    type: NodePort
-    port: 10022
-  externalTrafficPolicy: Local
 
 gitea:
   admin:
@@ -141,13 +136,9 @@ gitea:
     password: "changeme"
     email: "admin@fuseml.sh"
   config:
-    APP_NAME: "Fuseml"
     RUN_MODE: prod
     repository:
       ROOT:  "/data/git/gitea-repositories"
-    database:
-      DB_TYPE: sqlite3
-      PATH: /data/gitea/gitea.db
     server:
       DOMAIN:  %s
       ROOT_URL: %s
@@ -158,8 +149,6 @@ gitea:
     service:
       ENABLE_REGISTRATION_CAPTCHA: false
       DISABLE_REGISTRATION: true
-    openid:
-      ENABLE_OPENID_SIGNIN: false
     oauth2:
       ENABLE: true
       JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
@@ -185,7 +174,7 @@ gitea:
 		message := "Creating istio ingress gateway"
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
-				return helpers.CreateIstioIngressGateway("gitea", GiteaDeploymentID, subdomain, "gitea-http", 10080)
+				return helpers.CreateIstioIngressGateway("gitea", GiteaDeploymentID, subdomain, "gitea-http", 3000)
 			},
 		)
 		if err != nil {
