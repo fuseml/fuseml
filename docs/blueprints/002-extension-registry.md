@@ -81,6 +81,8 @@ In addition, there are optional requirements to be considered at this time, some
   * one (and only one) instance could be marked as default in the config
   * instances could be global or project-scoped
 
+* should we add the built-in services (gitea, tekton, trow) to the list of extensions, e.g. as immutable entries ?
+
 ## Proposed solution
 
 Implementing an extension registry involves the following high-level changes:
@@ -102,8 +104,109 @@ Implementing an extension registry involves the following high-level changes:
 * CLI:
   * support to list registered extensions (TBD if sensitive data such as passwords should be included)
 
-### Extension Registry Component
+### Domain Model
 
+This section covers the feature definition in business domain model terms, independent of I/O details such as state storage or REST APIs. A minimalistic approach is described first, followed by a more extensive one.
+
+#### Minimalistic Proposal
+
+The simplest form the extension registry record can take is a list of configuration parameters associated with a name and version, e.g.:
+
+```yaml
+name: mlflow-global
+description: MLFlow tracking service - global instance
+version: "1.19.0"
+configuration:
+  - name: MLFLOW_TRACKING_URI
+    value: http://mlflow
+  - name: MLFLOW_S3_ENDPOINT_URL
+    value: http://mlflow-minio:9000
+  - name: AWS_ACCESS_KEY_ID
+    value: 24oT0SfbJPEu6kUbUKsH
+  - name: AWS_SECRET_ACCESS_KEY
+    value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+```
+
+```yaml
+name: kfserving-local-cluster
+description: KFServing prediction service
+version: "0.6.0"
+configuration:
+  - name: KFSERVING_UI_URL
+    value: http://kfserving.10.120.130.140.nip.io/
+```
+
+Each entry represents a single tool deployment, embedding configuration information about all services that the tool provides and how they are exposed and can be accessed through endpoints. Multiple records need to be configured to represent multiple instances of the same tool. The configuration data is unstructured (i.e. FuseML can't tell which parameter is the URL, which contain sensitive information such as passwords, keys etc.).
+
+For tools and services implemented as k8s controllers (KFServing, Seldon Core etc.) and installed in the same k8s cluster where FuseML workflows are executed, we generally don't need to include any configuration parameters pertaining to service access or authentication/authorization. We rely on the default service account and namespace configured for FuseML workloads to access these services. However, the extension registry implementation should account for the following FuseML features and improvements:
+
+* multi-cluster access: the k8s cluster where a workflow step is executed may be different then the one where the tool is installed. In this case, the credentials needed to authenticate against the remote k8s cluster need to be provided explicitly to FuseML. We also need to refactor the container image implementing the workflow step to allow custom k8s credentials to be supplied instead of mounted from a service account secret.
+* multi-tenant access: even in the context of the same k8s cluster, the k8s admin might prefer to set up one or more customized namespaces (e.g. to configure quotas, traffic rules and so on) to host the FuseML workloads associated with a particular tool and/or project, instead of reusing a single namespace for all FuseML workloads. Different namespaces require different credentials.
+
+Multi-cluster and multi-tenant are both aspects that should be facilitated through FuseML features implemented explicitly for that purpose. For example, when a FuseML project is created, the FuseML server could automatically create a namespace dedicated to that project and set up the credentials for it. For multi-cluster access, the FuseML architecture might need to be expanded to include agent services running in the context of each cluster, or a centralized registry of k8s clusters and associated credentials could be implemented.
+
+For the time being, we can settle with modelling the extension registry record in a way that doesn't make it difficult to expand FuseML with these features later.
+
+Modifying the workflow domain model to reference the extension configuration data as a step input can be as simple as using the extension `name` field as a foreign key and having FuseML automatically convert all the extension configuration entries into environment variables, e.g.:
+
+```yaml
+[...]
+steps:
+[...]
+  - name: trainer
+    image: '{{ steps.builder.outputs.mlflow-env }}'
+    inputs:
+      - codeset:
+          name: '{{ inputs.mlflow-codeset }}'
+          path: '/project'
+      - extension:
+          name: mlflow-global
+    outputs:
+      - name: mlflow-model-url
+    # no longer needed because they can be extracted from the extension record and generated automatically 
+    #env:
+    #  - name: MLFLOW_TRACKING_URI
+    #    value: "http://mlflow"
+    #  - name: MLFLOW_S3_ENDPOINT_URL
+    #    value: "http://mlflow-minio:9000"
+    #  - name: AWS_ACCESS_KEY_ID
+    #    value: 24oT0SfbJPEu6kUbUKsH
+    #  - name: AWS_SECRET_ACCESS_KEY
+    #    value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+  - name: predictor
+    image: ghcr.io/fuseml/kfserving-predictor:0.1
+    inputs:
+      - name: model
+        value: '{{ steps.trainer.outputs.mlflow-model-url }}'
+      - name: predictor
+        value: '{{ inputs.predictor }}'
+      - codeset:
+          name: '{{ inputs.mlflow-codeset }}'
+          path: '/project'
+      - extension:
+          name: kfserving-local-cluster
+    outputs:
+      - name: prediction-url
+    # no longer needed because they can be extracted from the extension record and generated automatically
+    #env:
+    #  - name: AWS_ACCESS_KEY_ID
+    #    value: 24oT0SfbJPEu6kUbUKsH
+    #  - name: AWS_SECRET_ACCESS_KEY
+    #    value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+```
+
+Implementation detail: to further protect sensitive data from being leaked, FuseML could store all the configuration data associated with an extension record into a secret and reference that secret in the generated Tekton pipeline, instead of adding them as inline environment variable values.  
+
+There are some disadvantages with this minimalistic model, addressed in the second proposal:
+
+* extension configuration data is unstructured and opaque, we can't implement any logic in the FuseML core to take advantage of it. For example, we don't know which entries contain sensitive information that we need to hide from regular FuseML users and which contain information that regular FuseML users might benefit from (e.g. public, general-purpose URLs such as UIs)
+* extension records themselves are unstructured. Aside from the name, there is nothing that FuseML can use to make better decision when resolving extension references automatically, such as being able to dynamically choose between multiple instances of the same service, or multiple services of the same category, based on version, location or accounting constraints. 
+* organizing the extension information better would also improve the UX of accessing and consuming that information (e.g. listing extensions of a certain type).
+* the workflow step environment variable names are mapped one-to-one to the extension configuration entry names. This can create conflict situations. It also limits the reusability across FuseML instances of container images implementing workflow steps, because they need to be custom tailored to the environment variable names used within a single FuseML instance.
+
+#### Extended Proposal
+
+### Extension Registry Component
 
 #### REST API
 
