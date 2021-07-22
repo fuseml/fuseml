@@ -206,6 +206,311 @@ There are some disadvantages with this minimalistic model, addressed in the seco
 
 #### Extended Proposal
 
+The information captured in the extension record can be organized to have a more structured form, and to reflect common patterns extracted from the data used to describe known tools and services and their installations. The following hierarchy of elements is better suited to represent this data:
+
+* the root _extension_ model element represents a single framework/platform/service/product developed and released or hosted under a unique name and operated as a single cohesive unit. We'll keep the list of possible values for the top-level element open and unregulated for the time being, but in the future, as we add extensions, we should also consider maintaining a pre-populated list of tools and services as a common reference that is valid across FuseML installations.
+* one _extension_ element groups together several _extension instances_ - different installations of the same extension, with different or similar versions and configurations. This differentiation is needed to support requirements related to multi-instance.
+* several individual _services_, which can be consumed separately, can be provided by the same _extension instance_. For example, an MLFlow instance is composed of an experiment tracking service/API, a model store service and a UI. A _service_ is represented by a single API or UI. We could try to model services as children immediately under the _extension_ top-level element, but it works better to use the instance as a parent, given that we're more interested in service _instances_. For extensions implemented as cloud-native applications, a _service_ is the equivalent of a k8s service that is used to expose a public API or UI. _Services_ should also be classified into known categories (e.g. s3, git), to make it easier to support portable workflows (see optional requirements), where a workflow step lists a service category as a requirement, and FuseML automatically resolves that to whatever particular service instance is available at runtime.
+* a _service_ is exposed through several individual _endpoints_. Having a list of _endpoints_ associated with a single _service_ is particularly important for representing k8s services, which can be exposed both internally (cluster IP) and externally (e.g. ingress). Depending on the consumer location, FuseML can choose the endpoint that is accessible to and closer to the consumer. All _endpoints_ grouped under the same _service_ must be equivalent in the sense that they are backed by the same API and/or protocol.
+* _services_ under the same _instance_ can be accessed using one of several _profiles_. A _profile_ can be generally used to embed information pertaining to the authentication and authorization features supported by a service or a group of services. This element allows administrators and operators of 3rd party tools integrated with FuseML to configure different accounts and credentials (tokens, certificates, passwords) to be associated with different FuseML organization entities (users, projects, groups etc.). All information embedded in a _profile_ is treated as sensitive information. In the future, we could further specialize this element to model a predefined list of supported standard authentication and authorization schemes. Each _profile_ has an associated scope that controls who has access to this information (e.g. global, project, user, workflow). This is the equivalent of a k8s secret. _Profiles_ are configured globally for an _extension instance_ and can be associated with individual services and endpoints.
+* _configuration_ elements can be present under _extension instances_, _services_, _endpoints_ or _profiles_ and represent opaque, service specific configuration data that the consumers need in order to access and consume a service interface. _Configuration_ elements can be used to encode any information relevant for service clients: accounts and credentials, information describing the service or particular parameters that describe how the service should be used. For example, if endpoints are SSL secured, custom certificates (e.g. self-signed CA certificates) might be needed to access them and this should be included in the endpoint configuration. The information encoded in a _configuration_ element is only treated as sensitive information when present under a _profile_. Equivalent of a k8s configmap (or k8s secret, when under _profile_). 
+
+Examples:
+
+1. MLFlow instance deployed locally alongside FuseML and globally accessible:
+
+  ```yaml
+  name: mlflow
+  product: mlflow
+  description: MLFlow experiment tracking service
+  instances:
+    - name: default
+      version: "1.19.0"
+      location: local
+      services:
+        - name: mlflow-tracking
+          service: mlflow-tracking
+          description: MLFlow experiment tracking service API and UI
+          endpoints:
+            - name: cluster
+              url: http://mlflow
+              type: internal
+            - name: ingress
+              url: http://mlflow.10.110.120.130.nip.io
+              type: external
+              default: True
+        - name: mlflow-store
+          service: s3
+          description: MLFlow minio S3 storage back-end
+          profiles:
+            - default-s3-account
+          endpoints:
+            - name: cluster
+              url: http://mlflow-minio:9000
+              type: internal
+            - name: ingress
+              url: http://mlflow.10.110.120.130.nip.io
+              type: external
+              default: True
+      profiles:
+        - name: default-s3-account
+          scope: global
+          configuration:
+            - name: AWS_ACCESS_KEY_ID
+              value: 24oT0SfbJPEu6kUbUKsH
+            - name: AWS_SECRET_ACCESS_KEY
+              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+  ```
+
+2. example showing that the minio sub-service from the previous MLFlow instance can also be registered as a generic minio/S3 service, although this is not recommended, because even though the s3 service can be consumed independently of the parent product instance, the way that data is organized and stored in the s3 back-end is specific to MLFlow and should be discoverable as such:
+
+  ```yaml
+  name: minio
+  product: minio
+  description: Minio S3 storage service
+  instances:
+    - name: mlflow-storage
+      version: "4.1.3"
+      location: local
+      services:
+        - name: s3
+          service: s3
+          description: MLFlow minio S3 storage back-end
+          profiles:
+            - default
+          endpoints:
+            - name: cluster
+              url: http://mlflow-minio:9000
+              type: internal
+            - name: ingress
+              url: http://mlflow.10.110.120.130.nip.io
+              type: external
+              default: True
+      profiles:
+        - name: default
+          scope: global
+          configuration:
+            - name: AWS_ACCESS_KEY_ID
+              value: 24oT0SfbJPEu6kUbUKsH
+            - name: AWS_SECRET_ACCESS_KEY
+              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+  ```
+
+3. example of an extension record for a third party gitea instance hosted in a location other than FuseML where each FuseML project is associated with a Gitea user
+
+  ```yaml
+  name: gitea
+  product: gitea
+  description: Gitea version control server
+  instances:
+    - name: gitea-devel-rd
+      version: "1.14.3"
+      location: remote
+      services:
+        - name: git+https
+          service: git+https
+          description: Gitea git/https API
+          endpoints:
+            - name: public
+              url: https://mlflow-minio:9000
+              type: external
+              default: True
+      profiles:
+        - name: default
+          scope: global
+          configuration:
+            - name: username
+              value: fuseml
+            - name: password
+              value: 8KqS5xWQ4eagRu
+  ```
+
+4. example showing that the extension root element can be used to host different instances of different tools/services, even though this is not recommended:
+
+  ```yaml
+  name: s3-storage
+  product: s3
+  description: S3 storage services
+  instances:
+    - name: minio
+      version: "4.1.3"
+      location: local
+      services:
+        - name: s3
+          service: s3
+          description: Minio S3 storage deployed locally
+          profiles:
+            - local-minio
+          endpoints:
+            - name: cluster
+              url: http://mlflow-minio:9000
+              type: internal
+            - name: ingress
+              url: http://mlflow.10.110.120.130.nip.io
+              type: external
+              default: True
+    - name: aws
+      version: "4.1.3"
+      location: local
+      services:
+        - name: aws
+          service: s3
+          description: AWS S3 storage
+          profiles:
+            - AWS-S3
+          endpoints:
+            - name: s3.amazon.com
+              url: https://s3.amazonaws.com
+              type: external
+              default: True
+      profiles:
+        - name: local-minio
+          scope: global
+          configuration:
+            - name: AWS_ACCESS_KEY_ID
+              value: 24oT0SfbJPEu6kUbUKsH
+            - name: AWS_SECRET_ACCESS_KEY
+              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+        - name: aws
+          scope: global
+          configuration:
+            - name: AWS_ACCESS_KEY_ID
+              value: sWRS24oT0SfbJPEu6kU3EWf
+            - name: AWS_SECRET_ACCESS_KEY
+              value: abl4SDcMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0s
+  ```
+5. KFServing as an example of a k8s controller running in the same cluster as FuseML
+
+  ```yaml
+  name: kfserving
+  product: kfserving
+  description: KFServing prediction service
+  instances:
+    - name: local
+      version: "0.6.0"
+      location: local
+      services:
+        - name: API
+          service: kfserving-api
+          description: KFServing CRDs
+          endpoints:
+            - name: cluster
+              type: cluster-api
+              default: True
+        - name: UI
+          service: kfserving-ui
+          description: KFServing UI
+          endpoints:
+            - name: ui
+              url: http://kfserving.10.120.130.140.nip.io/
+              type: external
+    ```
+
+6. Seldon core as an example of a k8s service running in another cluster as FuseML and more tightly regulated by the admin
+
+  ```yaml
+  name: seldon-core
+  product: seldon
+  description: Seldon core prediction platform
+  instances:
+    - name: production
+      version: "1.9.1"
+      location: remote
+      services:
+        - name: API
+          service: seldon-core-api
+          description: Seldon Core CRDs
+          profiles:
+            - project-alpha
+            - project-beta
+          endpoints:
+            - name: cluster
+              url: https://production-cluster-xasf.example.com:6443
+              type: remote
+              default: True
+          configuration:
+            - name: CERT_AUTH
+              value: VsSCsdfLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1anF1TT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+            - name: INSECURE
+              value: False
+      profiles:
+        - name: project-alpha
+          scope: project
+          project:
+            - alpha
+          configuration:
+            - name: CLIENT_CERT
+              value: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQNBVEUtLS0tLQo=
+            - name: CLIENT_KEY
+              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+            - name: namespace
+              value: prj_xbs228
+        - name: project-beta
+          scope: project
+          project:
+            - beta
+          configuration:
+            - name: CLIENT_CERT
+              value: GHLS0t1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQWRxZ0F3BVEUtLS0tLQo=
+            - name: CLIENT_KEY
+              value: TyGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+            - name: namespace
+              value: prj_hys568
+    ```
+
+With the extended extension model, referencing an extension from a workflow allows for more flexibility:
+
+
+1. referencing a particular service instance by including the entire hierarchy in the selector
+
+```yaml
+[...]
+steps:
+[...]
+  - name: trainer
+    image: '{{ steps.builder.outputs.mlflow-env }}'
+    inputs:
+      - codeset:
+          name: '{{ inputs.mlflow-codeset }}'
+          path: '/project'
+    extensions:
+      - name: mlflow-tracker
+        product: mlflow
+        instance: mlflow-global
+        service: mlflow-tracker
+      - name: mlflow-storage
+        product: mlflow
+        instance: mlflow-global
+        service: mlflow-storage
+    outputs:
+      - name: mlflow-model-url
+```
+
+2. referencing a service by service type and using a version specifier
+
+```yaml
+[...]
+steps:
+[...]
+
+  - name: predictor
+    image: ghcr.io/fuseml/kfserving-predictor:0.1
+    inputs:
+      - name: model
+        value: '{{ steps.trainer.outputs.mlflow-model-url }}'
+      - name: predictor
+        value: '{{ inputs.predictor }}'
+      - codeset:
+          name: '{{ inputs.mlflow-codeset }}'
+          path: '/project'
+    extensions:
+      - name: kfserving
+        service: kfserving-api
+        version: ">=0.4.0"
+    outputs:
+      - name: prediction-url
+```
+
 ### Extension Registry Component
 
 #### REST API
