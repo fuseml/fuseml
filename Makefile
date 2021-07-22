@@ -86,10 +86,7 @@ tools:
 update_registry:
 	helm package ./assets/trow/ -d embedded-files
 
-update_mlflow:
-	helm package ./assets/mlflow/ -d embedded-files
-
-update_charts: update_registry update_mlflow
+update_charts: update_registry
 
 update_tekton:
 	mkdir -p embedded-files/tekton/install
