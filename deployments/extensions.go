@@ -48,15 +48,17 @@ type Extension struct {
 	Name       string
 	Repository string
 	Debug      bool
+	Timeout    int
 	desc       *extensionDesc
 }
 
-func NewExtension(name, repository string) *Extension {
+func NewExtension(name, repository string, timeout int) *Extension {
 	return &Extension{
 		Name:       name,
 		Repository: repository,
 		desc:       &extensionDesc{},
 		Debug:      false,
+		Timeout:    timeout,
 	}
 }
 
@@ -367,6 +369,18 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 				return err
 			}
 		}
+		// if there was step specific or extension specific namespace, wait until all pods in such namespace
+		// are running before proceeding with next step
+		if ns == defaultNamespace {
+			continue
+		}
+		if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
+		}
+		if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+		}
+
 	}
 
 	if e.desc.Namespace != "" {
