@@ -27,6 +27,7 @@ type installStep struct {
 	Location  string
 	Values    string
 	Namespace string
+	WaitFor   string
 }
 
 type istioGateway struct {
@@ -369,16 +370,14 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 				return err
 			}
 		}
-		// if there was step specific or extension specific namespace, wait until all pods in such namespace
-		// are running before proceeding with next step
-		if ns == defaultNamespace {
-			continue
-		}
-		if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
-		}
-		if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+		// wait until all pods in a namespace are running before proceeding with next step
+		if step.WaitFor == "pods" {
+			if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
+			}
+			if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+			}
 		}
 
 	}
