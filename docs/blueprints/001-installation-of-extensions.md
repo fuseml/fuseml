@@ -86,7 +86,7 @@ Location arguments:
 
 Namespace:
 
-Each step could have it's own namespace. If it is missing, namespace of extension is used. If this is missing or empty fuseml-installer picks the namespace.
+Each step could have it's own namespace. If it is missing, namespace of extension is used. If this is missing or empty fuseml-installer will not use any namespace during the step operation (this indeed might be the correct scenario for example when installing CRDs).
 
 #### Examples of extension files
 
@@ -102,6 +102,7 @@ install:
   - type: script
     namespace: mlflow
     location: post-install.yaml
+    waitfor: pods
 uninstall:
   - type: helm
     location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
@@ -126,6 +127,16 @@ uninstall:
   - type: script
     location: uninstall.sh
 ```
+
+### Gateways
+
+If `gateways` field is specified in the desctription, fuseml installer will create istio gateway(s) for a component. See the `mlflow` example for the syntax.
+
+
+### Wait For
+
+After the instruction from installation step are executed, it would be wise to wait until certain condition is true to make sure the installer may continue with the next step.
+`waitfor` may indicate specific condition the installer should wait for. For example, having `pods` as a value means that installer may proceed with the next step only when all pods in given namespace are running.
 
 ### Location
 
