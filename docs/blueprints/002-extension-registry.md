@@ -212,8 +212,8 @@ The information captured in the extension record can be organized to have a more
 * one _extension_ element groups together several _extension instances_ - different installations of the same extension, with different or similar versions and configurations. This differentiation is needed to support requirements related to multi-instance.
 * several individual _services_, which can be consumed separately, can be provided by the same _extension instance_. For example, an MLFlow instance is composed of an experiment tracking service/API, a model store service and a UI. A _service_ is represented by a single API or UI. We could try to model services as children immediately under the _extension_ top-level element, but it works better to use the instance as a parent, given that we're more interested in service _instances_. For extensions implemented as cloud-native applications, a _service_ is the equivalent of a k8s service that is used to expose a public API or UI. _Services_ should also be classified into known categories (e.g. s3, git), to make it easier to support portable workflows (see optional requirements), where a workflow step lists a service category as a requirement, and FuseML automatically resolves that to whatever particular service instance is available at runtime.
 * a _service_ is exposed through several individual _endpoints_. Having a list of _endpoints_ associated with a single _service_ is particularly important for representing k8s services, which can be exposed both internally (cluster IP) and externally (e.g. ingress). Depending on the consumer location, FuseML can choose the endpoint that is accessible to and closer to the consumer. All _endpoints_ grouped under the same _service_ must be equivalent in the sense that they are backed by the same API and/or protocol.
-* _services_ under the same _instance_ can be accessed using one of several _profiles_. A _profile_ can be generally used to embed information pertaining to the authentication and authorization features supported by a service or a group of services. This element allows administrators and operators of 3rd party tools integrated with FuseML to configure different accounts and credentials (tokens, certificates, passwords) to be associated with different FuseML organization entities (users, projects, groups etc.). All information embedded in a _profile_ is treated as sensitive information. In the future, we could further specialize this element to model a predefined list of supported standard authentication and authorization schemes. Each _profile_ has an associated scope that controls who has access to this information (e.g. global, project, user, workflow). This is the equivalent of a k8s secret. _Profiles_ are configured globally for an _extension instance_ and can be associated with individual services and endpoints.
-* _configuration_ elements can be present under _extension instances_, _services_, _endpoints_ or _profiles_ and represent opaque, service specific configuration data that the consumers need in order to access and consume a service interface. _Configuration_ elements can be used to encode any information relevant for service clients: accounts and credentials, information describing the service or particular parameters that describe how the service should be used. For example, if endpoints are SSL secured, custom certificates (e.g. self-signed CA certificates) might be needed to access them and this should be included in the endpoint configuration. The information encoded in a _configuration_ element is only treated as sensitive information when present under a _profile_. Equivalent of a k8s configmap (or k8s secret, when under _profile_). 
+* _services_ under the same _instance_ can be accessed using one of several sets of _credentials_. A set of _credentials_ can be generally used to embed information pertaining to the authentication and authorization features supported by a service or a group of services. This element allows administrators and operators of 3rd party tools integrated with FuseML to configure different accounts and credentials (tokens, certificates, passwords) to be associated with different FuseML organization entities (users, projects, groups etc.). All information embedded in a _credentials_ entry is treated as sensitive information. In the future, we could further specialize this element to model a predefined list of supported standard authentication and authorization schemes. Each _credentials_ entry has an associated scope that controls who has access to this information (e.g. global, project, user, workflow). This is the equivalent of a k8s secret. _Credentials_ are configured globally for an extension _instance_ and can be associated with individual services and endpoints.
+* _configuration_ elements can be present under _extension instances_, _services_, _endpoints_ or _credentials_ and represent opaque, service specific configuration data that the consumers need in order to access and consume a service interface. _Configuration_ elements can be used to encode any information relevant for service clients: accounts and credentials, information describing the service or particular parameters that describe how the service should be used. For example, if endpoints are SSL secured, custom certificates (e.g. self-signed CA certificates) might be needed to access them and this should be included in the endpoint configuration. The information encoded in a _configuration_ element is only treated as sensitive information when present under a _profile_. Equivalent of a k8s configmap (or k8s secret, when under _profile_). 
 
 Examples:
 
@@ -242,7 +242,7 @@ Examples:
         - name: mlflow-store
           service: s3
           description: MLFlow minio S3 storage back-end
-          profiles:
+          credentials:
             - default-s3-account
           endpoints:
             - name: cluster
@@ -252,7 +252,7 @@ Examples:
               url: http://mlflow.10.110.120.130.nip.io
               type: external
               default: True
-      profiles:
+      credentials:
         - name: default-s3-account
           scope: global
           configuration:
@@ -276,7 +276,7 @@ Examples:
         - name: s3
           service: s3
           description: MLFlow minio S3 storage back-end
-          profiles:
+          credentials:
             - default
           endpoints:
             - name: cluster
@@ -286,7 +286,7 @@ Examples:
               url: http://mlflow.10.110.120.130.nip.io
               type: external
               default: True
-      profiles:
+      credentials:
         - name: default
           scope: global
           configuration:
@@ -307,20 +307,22 @@ Examples:
       version: "1.14.3"
       location: remote
       services:
-        - name: git+https
-          service: git+https
-          description: Gitea git/https API
+        - name: git+http
+          service: git+http
+          description: Gitea git/http API
           endpoints:
             - name: public
-              url: https://mlflow-minio:9000
+              url: http://gitea.10.110.120.130.nip.io
               type: external
               default: True
-      profiles:
-        - name: default
+          credentials:
+            - default
+      credentials:
+        - name: admin
           scope: global
           configuration:
             - name: username
-              value: fuseml
+              value: admin
             - name: password
               value: 8KqS5xWQ4eagRu
   ```
@@ -339,7 +341,7 @@ Examples:
         - name: s3
           service: s3
           description: Minio S3 storage deployed locally
-          profiles:
+          credentials:
             - local-minio
           endpoints:
             - name: cluster
@@ -356,14 +358,14 @@ Examples:
         - name: aws
           service: s3
           description: AWS S3 storage
-          profiles:
+          credentials:
             - AWS-S3
           endpoints:
             - name: s3.amazon.com
               url: https://s3.amazonaws.com
               type: external
               default: True
-      profiles:
+      credentials:
         - name: local-minio
           scope: global
           configuration:
@@ -404,7 +406,7 @@ Examples:
             - name: ui
               url: http://kfserving.10.120.130.140.nip.io/
               type: external
-    ```
+  ```
 
 6. Seldon core as an example of a k8s service running in another cluster as FuseML and more tightly regulated by the admin
 
@@ -420,7 +422,7 @@ Examples:
         - name: API
           service: seldon-core-api
           description: Seldon Core CRDs
-          profiles:
+          credentials:
             - project-alpha
             - project-beta
           endpoints:
@@ -433,7 +435,7 @@ Examples:
               value: VsSCsdfLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1anF1TT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
             - name: INSECURE
               value: False
-      profiles:
+      credentials:
         - name: project-alpha
           scope: project
           project:
@@ -456,60 +458,137 @@ Examples:
               value: TyGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
             - name: namespace
               value: prj_hys568
-    ```
+  ```
 
-With the extended extension model, referencing an extension from a workflow allows for more flexibility:
+With the extended extension model, referencing an extension from a workflow allows for more flexibility. We're still limited by the fact that the FuseML core service must be able to _unambiguously_ resolve the information given in the workflow to a particular extension endpoint and a set of credentials (if present). The updated workflow model should allow users to explicitly point to an extension endpoint and set of credentials. It should also allow users to reference a type of service using identifiers that are universally valid (i.e. valid across FuseML installations), to facilitate support for reusable workflows.
 
+1. explicitly referencing a particular service instance by including instance specific identification information into the selector
 
-1. referencing a particular service instance by including the entire hierarchy in the selector
+  ```yaml
+  [...]
+  steps:
+  [...]
+    - name: trainer
+      image: '{{ steps.builder.outputs.mlflow-env }}'
+      inputs:
+        - codeset:
+            name: '{{ inputs.mlflow-codeset }}'
+            path: '/project'
+      extensions:
+        - name: mlflow-tracker
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-tracker
+          endpoint: cluster
+        - name: mlflow-storage
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-storage
+          endpoint: cluster
+      outputs:
+        - name: mlflow-model-url
+  ```
 
-```yaml
-[...]
-steps:
-[...]
-  - name: trainer
-    image: '{{ steps.builder.outputs.mlflow-env }}'
-    inputs:
-      - codeset:
-          name: '{{ inputs.mlflow-codeset }}'
-          path: '/project'
-    extensions:
-      - name: mlflow-tracker
-        product: mlflow
-        instance: mlflow-global
-        service: mlflow-tracker
-      - name: mlflow-storage
-        product: mlflow
-        instance: mlflow-global
-        service: mlflow-storage
-    outputs:
-      - name: mlflow-model-url
-```
+2. referencing a service type independently of running instance and even independent of product and using a version specifier
 
-2. referencing a service by service type and using a version specifier
+  ```yaml
+  [...]
+  steps:
+  [...]
 
-```yaml
-[...]
-steps:
-[...]
+    - name: predictor
+      image: ghcr.io/fuseml/kfserving-predictor:0.1
+      inputs:
+        - name: model
+          value: '{{ steps.trainer.outputs.mlflow-model-url }}'
+        - name: predictor
+          value: '{{ inputs.predictor }}'
+        - codeset:
+            name: '{{ inputs.mlflow-codeset }}'
+            path: '/project'
+      extensions:
+        - name: kfserving
+          service: kfserving-api
+          version: ">=0.4.0"
+      outputs:
+        - name: prediction-url
+  ```
 
-  - name: predictor
-    image: ghcr.io/fuseml/kfserving-predictor:0.1
-    inputs:
-      - name: model
-        value: '{{ steps.trainer.outputs.mlflow-model-url }}'
-      - name: predictor
-        value: '{{ inputs.predictor }}'
-      - codeset:
-          name: '{{ inputs.mlflow-codeset }}'
-          path: '/project'
-    extensions:
-      - name: kfserving
-        service: kfserving-api
-        version: ">=0.4.0"
-    outputs:
-      - name: prediction-url
-```
+The other workflow model modification is with respect to how information from the extension record is provided to the workflow step containers:
+
+* as a default, the extension endpoint record in YAML format could be saved as a secret and/or configmap and mounted in the container at a predefined root path (similarly to how it's done for inputs)
+* also as a default, the configuration entries collected from the instance/service/endpoint/credentials could be merged and mapped to environment variables
+* the model should also support explicitly mapping new env variable names to the configuration entry names, e.g.:
+
+  ```yaml
+  [...]
+  steps:
+  [...]
+    - name: trainer
+      image: '{{ steps.builder.outputs.mlflow-env }}'
+      inputs:
+        - codeset:
+            name: '{{ inputs.mlflow-codeset }}'
+            path: '/project'
+      extensions:
+        - name: mlflow-tracker
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-tracker
+          endpoint: cluster
+        - name: mlflow-storage
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-storage
+          endpoint: cluster
+          environment:
+            - name: S3_ACCESS_KEY_ID
+              configuration: AWS_ACCESS_KEY_ID
+            - name: S3_SECRET_ACCESS_KEY
+              configuration: AWS_SECRET_ACCESS_KEY
+      outputs:
+        - name: mlflow-model-url
+  ```
+
+* a more advanced feature is to reuse the expression support to expand fields in the extension record
+
+  ```yaml
+  [...]
+  steps:
+  [...]
+    - name: trainer
+      image: '{{ steps.builder.outputs.mlflow-env }}'
+      inputs:
+        - codeset:
+            name: '{{ inputs.mlflow-codeset }}'
+            path: '/project'
+        - name: s3_access_key
+          value: '{{ extension.mlflow-storage.AWS_ACCESS_KEY_ID }}'
+        - name: s3_access_key
+          value: '{{ extension.mlflow-storage.AWS_SECRET_ACCESS_KEY }}'
+      extensions:
+        - name: mlflow-tracker
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-tracker
+          endpoint: cluster
+        - name: mlflow-storage
+          product: mlflow
+          instance: mlflow-global
+          service: mlflow-storage
+          endpoint: cluster
+      outputs:
+        - name: mlflow-model-url
+  ```
+
+#### Complexity Concerns
+
+The extension domain model could be quite complex to work with from an user experience perspective. There are several ways to hide this complexity from the end user while keeping the extended domain model untouched:
+
+* for 3rd party tools installable through the FuseML installer, registration should be done automatically, e.g. by means of YAML templates or scripts or a combination of both
+* implementing shortcuts in the FuseML installer to address simpler use-cases and allowing end users to quickly register extensions through the command line with the option to provide a full-blown YAML file for more complex use-cases. For example, a shortcut could be to register one service endpoint with a single command and extrapolate as much information as possible (names, descriptions) from that
+* using external extension record templates (e.g. maintained by the FuseML community for the more popular tools and services that can be used with FuseML). The end user would provide a template to the FuseML installer as a base and fill in only missing information (e.g. actual URLs and credentials). These could be the same templates packaged with the installer extensions and used to register extensions automatically
+* ultimately, we could make the REST API a simplified version of the domain model (e.g. collapse some of the hierarchy levels) and implement conversion logic in the REST service
 
 ### Extension Registry Component
 
@@ -517,10 +596,9 @@ steps:
 
 ### Workflow Manager Updates
 
-#### DSL Updates
+#### Workflow DSL Updates
 
 ### Installer
 
 ### CLI
-
 
