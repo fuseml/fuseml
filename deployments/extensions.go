@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -14,11 +15,12 @@ import (
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas/ui"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	defaultDescriptionFileName = "description.yaml"
-	defaultNamespace           = "fuseml-workloads"
 	tmpSubDir                  = "fuseml-extension"
 )
 
@@ -179,7 +181,11 @@ func (e *Extension) installManifest(path, ns string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
-	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s --namespace %s", manifestLocalPath, ns))
+	kubectlCmd := fmt.Sprintf("apply --filename %s", manifestLocalPath)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+	out, err := helpers.Kubectl(kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -199,7 +205,12 @@ func (e *Extension) unInstallManifest(path, ns string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
-	out, err := helpers.Kubectl(fmt.Sprintf("delete --filename %s --namespace %s", manifestLocalPath, ns))
+	kubectlCmd := fmt.Sprintf("delete --filename %s", manifestLocalPath)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+
+	out, err := helpers.Kubectl(kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl delete failed:\n%s", out))
@@ -232,6 +243,9 @@ func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) err
 	}
 
 	helmCmd := fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
+	if ns == "" {
+		helmCmd = fmt.Sprintf("helm install %s --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
+	}
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -251,7 +265,10 @@ func (e *Extension) uninstallHelmChart(ui *ui.UI, name, ns string) error {
 	}
 	out, err := helpers.WaitForCommandCompletion(ui, "Removing helm release "+name,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", name, ns)
+			helmCmd := fmt.Sprintf("helm uninstall '%s'", name)
+			if ns != "" {
+				helmCmd = helmCmd + " --namespace " + ns
+			}
 			return helpers.RunProc(helmCmd, currentdir, e.Debug)
 		},
 	)
@@ -279,12 +296,27 @@ func deleteNamespace(c *kubernetes.Cluster, ui *ui.UI, ns string) error {
 	return nil
 }
 
+func createNamespace(c *kubernetes.Cluster, ns string) error {
+	if exists, _ := c.NamespaceExists(ns); exists == true {
+		return nil
+	}
+	if _, err := c.Kubectl.CoreV1().Namespaces().Create(
+		context.Background(),
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: ns,
+			},
+		},
+		metav1.CreateOptions{},
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
 	namespace := e.desc.Namespace
-	if namespace == "" {
-		namespace = defaultNamespace
-	}
 	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
 	for _, step := range e.desc.Uninstall {
 
@@ -332,14 +364,18 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
 	namespace := e.desc.Namespace
-	if namespace == "" {
-		namespace = defaultNamespace
+	if namespace != "" {
+		if err := createNamespace(c, namespace); err != nil {
+			return err
+		}
 	}
 	// based on installation type (script/helm/manifest), proceed with execution of each install step
 	for _, step := range e.desc.Install {
 		ns := step.Namespace
-		if ns == "" {
-			ns = namespace
+		if ns != namespace && ns != "" {
+			if err := createNamespace(c, ns); err != nil {
+				return err
+			}
 		}
 
 		switch step.Type {
