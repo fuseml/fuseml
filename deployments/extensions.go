@@ -162,6 +162,10 @@ func (e *Extension) executeScript(path string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
+	if err := os.Chmod(fullCmd, 0740); err != nil {
+		return errors.New(fmt.Sprintf("Failed changing the file mode of %s", fullCmd))
+	}
+
 	if out, err := helpers.RunProc(fullCmd, tmpDir, e.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed running script: %s\n", out))
 	}
