@@ -75,6 +75,7 @@ Possible installation types for extensions:
 
 * `helm` - helm chart. For helm chart type, no extra install/uninstall commands are necessary
 * `manifest` - Kubernetes manifest, to be installaded using `kubectl`. No extra install/uninstall commands are necessary. All information (including namespace for example) are expected to be present in the manifest file.
+* `kustomize` - directory with Kustomize files. It has to be full URL (that works as an input for `kubectl -k`) or a (absolute or relative) path to local directory
 * `script` - shell script. Specific `install` and `uninstall` actions need to be provided by way of referencing specific scripts.
 
 `script` type seems like a least secure one, and we should aim for replacing it with the other types in the future.
