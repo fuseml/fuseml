@@ -235,7 +235,7 @@ func (e *Extension) uninstallManifest(path, ns string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
-	kubectlCmd := fmt.Sprintf("delete --filename %s", manifestLocalPath)
+	kubectlCmd := fmt.Sprintf("delete --filename %s --ignore-not-found", manifestLocalPath)
 	if ns != "" {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
