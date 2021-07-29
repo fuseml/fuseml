@@ -293,7 +293,7 @@ func (e *Extension) uninstallKustomize(path, ns string) error {
 		return errors.Wrap(err, "failed fetching directory from "+path)
 	}
 
-	kubectlCmd := fmt.Sprintf("delete --kustomize %s", kustomizeDir)
+	kubectlCmd := fmt.Sprintf("delete --kustomize %s --ignore-not-found", kustomizeDir)
 	if ns != "" {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
