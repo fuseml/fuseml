@@ -21,6 +21,7 @@ import (
 
 const (
 	defaultDescriptionFileName = "description.yaml"
+	defaultNamespace           = "fuseml-workloads"
 	tmpSubDir                  = "fuseml-extension"
 )
 
@@ -449,7 +450,7 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 			return errors.New("Unsupported step type: " + step.Type)
 		}
 		// delete namespace if it was specific to step
-		if step.Namespace != "" && step.Namespace != namespace {
+		if step.Namespace != "" && step.Namespace != namespace && step.Namespace != defaultNamespace {
 			if err := deleteNamespace(c, ui, step.Namespace); err != nil {
 				return err
 			}
@@ -457,7 +458,7 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 		}
 	}
 	// delete namespace if it was specific to extension
-	if e.Desc.Namespace != "" {
+	if e.Desc.Namespace != "" && e.Desc.Namespace != defaultNamespace {
 		if err := deleteNamespace(c, ui, e.Desc.Namespace); err != nil {
 			return err
 		}
