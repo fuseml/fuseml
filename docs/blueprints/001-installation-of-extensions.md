@@ -101,9 +101,14 @@ install:
     location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
     values: values.yaml
   - type: script
-    namespace: mlflow
+    namespace: fuseml-workloads
     location: post-install.yaml
-    waitfor: pods
+    waitfor:
+      - kind: pod
+        namespace: fuseml-workloads
+        selector: all
+        condition: ready
+        timeout: 300
 uninstall:
   - type: helm
     location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
@@ -137,7 +142,8 @@ If `gateways` field is specified in the desctription, fuseml installer will crea
 ### Wait For
 
 After the instruction from installation step are executed, it would be wise to wait until certain condition is true to make sure the installer may continue with the next step.
-`waitfor` may indicate specific condition the installer should wait for. For example, having `pods` as a value means that installer may proceed with the next step only when all pods in given namespace are running.
+`waitfor` may indicate specific condition the installer should wait for. It takes the argument that could generally be passed to `kubectl wait` command.
+Currently supported arguments are `kind` (if missing, defaults to `pod`), `namespace`, `condition` (defaults to `ready`) `timeout` (in seconds; defaults to 300) and `selector`. If the value of `selector` is `all`, it is gonna wait for all resources of given kind to reach the condition. Otherwise the selector's value is treated like the value for `--selector` option of `kubectl wait` command.
 
 ### Location
 

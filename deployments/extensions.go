@@ -24,12 +24,20 @@ const (
 	tmpSubDir                  = "fuseml-extension"
 )
 
+type waitForStep struct {
+	Kind      string
+	Namespace string
+	Condition string
+	Selector  string
+	Timeout   int
+}
+
 type installStep struct {
 	Type      string
 	Location  string
 	Values    string
 	Namespace string
-	WaitFor   string
+	WaitFor   []waitForStep
 }
 
 type istioGateway struct {
@@ -494,13 +502,42 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 				return err
 			}
 		}
-		// wait until all pods in a namespace are running before proceeding with next step
-		if step.WaitFor == "pods" {
-			if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
+		if len(step.WaitFor) == 0 {
+			continue
+		}
+		// wait until all wait steps are completed
+		for _, waitStep := range step.WaitFor {
+
+			condition := waitStep.Condition
+			if condition == "" {
+				condition = "Ready"
 			}
-			if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+			selection := "--all"
+			if waitStep.Selector != "all" {
+				selection = fmt.Sprintf("--selector=%s", waitStep.Selector)
+			}
+			timeout := waitStep.Timeout
+			if timeout == 0 {
+				timeout = e.Timeout
+			}
+			kind := waitStep.Kind
+			if kind == "" {
+				kind = "pod"
+			}
+
+			message := fmt.Sprintf("waiting for install step to finish waiting for %s", kind)
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.Kubectl(fmt.Sprintf("wait --for=condition=%s %s --timeout=%ds -n %s %s",
+						condition,
+						selection,
+						timeout,
+						waitStep.Namespace,
+						kind))
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 			}
 		}
 
