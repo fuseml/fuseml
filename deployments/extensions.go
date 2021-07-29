@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -14,11 +15,12 @@ import (
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas/ui"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	defaultDescriptionFileName = "description.yaml"
-	defaultNamespace           = "fuseml-workloads"
 	tmpSubDir                  = "fuseml-extension"
 )
 
@@ -27,6 +29,7 @@ type installStep struct {
 	Location  string
 	Values    string
 	Namespace string
+	WaitFor   string
 }
 
 type istioGateway struct {
@@ -147,6 +150,32 @@ func (e *Extension) fetchFile(filePath, tmpDir string) (string, error) {
 	return filepath.Join(e.Repository, e.Name, filePath), nil
 }
 
+// Pass the path string and return the absolute location of the directory
+// If the path is relative, join it with the base repository path; if
+// the path is URL, return the URL
+func (e *Extension) getDirectoryPath(dirPath, tmpDir string) (string, error) {
+
+	// 1, local path is absolute, return right away
+	if filepath.IsAbs(dirPath) {
+		return dirPath, nil
+	}
+
+	u, err := url.Parse(dirPath)
+	if err != nil {
+		return "", err
+	}
+
+	// 2. full URL, return as it is
+	if u.IsAbs() && u.Host != "" {
+		return dirPath, nil
+	}
+	// do not support relative path to main URL, the base URL is different for files and
+	// kustomize directories...
+
+	// 3. relative path to extension's local path
+	return filepath.Join(e.Repository, e.Name, dirPath), nil
+}
+
 func (e *Extension) executeScript(path string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
@@ -157,6 +186,10 @@ func (e *Extension) executeScript(path string) error {
 	fullCmd, err := e.fetchFile(path, tmpDir)
 	if err != nil {
 		return errors.Wrap(err, "failed fetching file from "+path)
+	}
+
+	if err := os.Chmod(fullCmd, 0740); err != nil {
+		return errors.New(fmt.Sprintf("Failed changing the file mode of %s", fullCmd))
 	}
 
 	if out, err := helpers.RunProc(fullCmd, tmpDir, e.Debug); err != nil {
@@ -178,7 +211,11 @@ func (e *Extension) installManifest(path, ns string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
-	out, err := helpers.Kubectl(fmt.Sprintf("apply --filename %s --namespace %s", manifestLocalPath, ns))
+	kubectlCmd := fmt.Sprintf("apply --filename %s", manifestLocalPath)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+	out, err := helpers.Kubectl(kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -186,7 +223,7 @@ func (e *Extension) installManifest(path, ns string) error {
 	return nil
 }
 
-func (e *Extension) unInstallManifest(path, ns string) error {
+func (e *Extension) uninstallManifest(path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
@@ -198,10 +235,63 @@ func (e *Extension) unInstallManifest(path, ns string) error {
 		return errors.Wrap(err, "failed fetching file from "+path)
 	}
 
-	out, err := helpers.Kubectl(fmt.Sprintf("delete --filename %s --namespace %s", manifestLocalPath, ns))
+	kubectlCmd := fmt.Sprintf("delete --filename %s --ignore-not-found", manifestLocalPath)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+
+	out, err := helpers.Kubectl(kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl delete failed:\n%s", out))
+	}
+	return nil
+}
+
+func (e *Extension) installKustomize(path, ns string) error {
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	kustomizeDir, err := e.getDirectoryPath(path, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed fetching directory from "+path)
+	}
+
+	kubectlCmd := fmt.Sprintf("apply --kustomize %s", kustomizeDir)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+	out, err := helpers.Kubectl(kubectlCmd)
+
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
+	}
+	return nil
+}
+
+func (e *Extension) uninstallKustomize(path, ns string) error {
+	tmpDir, err := ioutil.TempDir("", tmpSubDir)
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory "+tmpDir)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	kustomizeDir, err := e.getDirectoryPath(path, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed fetching directory from "+path)
+	}
+
+	kubectlCmd := fmt.Sprintf("delete --kustomize %s", kustomizeDir)
+	if ns != "" {
+		kubectlCmd = kubectlCmd + " --namespace " + ns
+	}
+	out, err := helpers.Kubectl(kubectlCmd)
+
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
 	}
 	return nil
 }
@@ -231,6 +321,9 @@ func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) err
 	}
 
 	helmCmd := fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
+	if ns == "" {
+		helmCmd = fmt.Sprintf("helm install %s --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
+	}
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -250,7 +343,10 @@ func (e *Extension) uninstallHelmChart(ui *ui.UI, name, ns string) error {
 	}
 	out, err := helpers.WaitForCommandCompletion(ui, "Removing helm release "+name,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", name, ns)
+			helmCmd := fmt.Sprintf("helm uninstall '%s'", name)
+			if ns != "" {
+				helmCmd = helmCmd + " --namespace " + ns
+			}
 			return helpers.RunProc(helmCmd, currentdir, e.Debug)
 		},
 	)
@@ -278,12 +374,27 @@ func deleteNamespace(c *kubernetes.Cluster, ui *ui.UI, ns string) error {
 	return nil
 }
 
+func createNamespace(c *kubernetes.Cluster, ns string) error {
+	if exists, _ := c.NamespaceExists(ns); exists == true {
+		return nil
+	}
+	if _, err := c.Kubectl.CoreV1().Namespaces().Create(
+		context.Background(),
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: ns,
+			},
+		},
+		metav1.CreateOptions{},
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
 	namespace := e.desc.Namespace
-	if namespace == "" {
-		namespace = defaultNamespace
-	}
 	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
 	for _, step := range e.desc.Uninstall {
 
@@ -299,9 +410,14 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 				return errors.Wrap(err, "failed to uninstall helm release "+e.Name)
 			}
 		case "manifest":
-			err := e.unInstallManifest(step.Location, ns)
+			err := e.uninstallManifest(step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to uninstall kubernetes manifest from "+step.Location)
+			}
+		case "kustomize":
+			err := e.uninstallKustomize(step.Location, ns)
+			if err != nil {
+				return errors.Wrap(err, "failed to uninstall using kustomize directory "+step.Location)
 			}
 		case "script":
 			err := e.executeScript(step.Location)
@@ -331,14 +447,18 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
 	namespace := e.desc.Namespace
-	if namespace == "" {
-		namespace = defaultNamespace
+	if namespace != "" {
+		if err := createNamespace(c, namespace); err != nil {
+			return err
+		}
 	}
 	// based on installation type (script/helm/manifest), proceed with execution of each install step
 	for _, step := range e.desc.Install {
 		ns := step.Namespace
-		if ns == "" {
-			ns = namespace
+		if ns != namespace && ns != "" {
+			if err := createNamespace(c, ns); err != nil {
+				return err
+			}
 		}
 
 		switch step.Type {
@@ -351,6 +471,11 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			err := e.installManifest(step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to install kubernetes manifest from "+step.Location)
+			}
+		case "kustomize":
+			err := e.installKustomize(step.Location, ns)
+			if err != nil {
+				return errors.Wrap(err, "failed to install from kustomize directory "+step.Location)
 			}
 		case "script":
 			err := e.executeScript(step.Location)
@@ -369,16 +494,14 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 				return err
 			}
 		}
-		// if there was step specific or extension specific namespace, wait until all pods in such namespace
-		// are running before proceeding with next step
-		if ns == defaultNamespace {
-			continue
-		}
-		if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
-		}
-		if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+		// wait until all pods in a namespace are running before proceeding with next step
+		if step.WaitFor == "pods" {
+			if err := c.WaitUntilPodBySelectorExist(ui, ns, "", e.Timeout); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to exist", ns))
+			}
+			if err := c.WaitForPodBySelectorRunning(ui, ns, "", e.Timeout); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed while waiting for pods in %s namespace to come up", ns))
+			}
 		}
 
 	}

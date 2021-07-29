@@ -141,15 +141,6 @@ tools-versions:
 istio-install:
 	@./scripts/istio-minimal-install.sh
 
-knative-install:
-	@./scripts/knative-install.sh
-
-cert-manager-install:
-	@./scripts/cert-manager-install.sh
-
-kfserving-install: knative-install cert-manager-install
-	@./scripts/kfserving-install.sh
-
 seldon-install:
 	@./scripts/seldon-operator-install.sh
 
@@ -168,10 +159,10 @@ mlflow-e2e:
 fuseml-install:
 	@./dist/fuseml-installer install
 
-fuseml-install-with-mlflow:
-	@./dist/fuseml-installer install --extensions mlflow
+fuseml-install-with-extensions:
+	@./dist/fuseml-installer install --extensions mlflow,cert-manager,knative,kfserving
 
-test-mlflow-e2e: build new-test-cluster fuseml-install-with-mlflow kfserving-install mlflow-e2e delete-test-cluster
+test-mlflow-e2e: build new-test-cluster fuseml-install-with-extensions mlflow-e2e delete-test-cluster
 
 
 ########################################################################

@@ -75,6 +75,7 @@ Possible installation types for extensions:
 
 * `helm` - helm chart. For helm chart type, no extra install/uninstall commands are necessary
 * `manifest` - Kubernetes manifest, to be installaded using `kubectl`. No extra install/uninstall commands are necessary. All information (including namespace for example) are expected to be present in the manifest file.
+* `kustomize` - directory with Kustomize files. It has to be full URL (that works as an input for `kubectl -k`) or a (absolute or relative) path to local directory
 * `script` - shell script. Specific `install` and `uninstall` actions need to be provided by way of referencing specific scripts.
 
 `script` type seems like a least secure one, and we should aim for replacing it with the other types in the future.
@@ -86,7 +87,7 @@ Location arguments:
 
 Namespace:
 
-Each step could have it's own namespace. If it is missing, namespace of extension is used. If this is missing or empty fuseml-installer picks the namespace.
+Each step could have it's own namespace. If it is missing, namespace of extension is used. If this is missing or empty fuseml-installer will not use any namespace during the step operation (this indeed might be the correct scenario for example when installing CRDs).
 
 #### Examples of extension files
 
@@ -102,6 +103,7 @@ install:
   - type: script
     namespace: mlflow
     location: post-install.yaml
+    waitfor: pods
 uninstall:
   - type: helm
     location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
@@ -126,6 +128,16 @@ uninstall:
   - type: script
     location: uninstall.sh
 ```
+
+### Gateways
+
+If `gateways` field is specified in the desctription, fuseml installer will create istio gateway(s) for a component. See the `mlflow` example for the syntax.
+
+
+### Wait For
+
+After the instruction from installation step are executed, it would be wise to wait until certain condition is true to make sure the installer may continue with the next step.
+`waitfor` may indicate specific condition the installer should wait for. For example, having `pods` as a value means that installer may proceed with the next step only when all pods in given namespace are running.
 
 ### Location
 
