@@ -212,7 +212,7 @@ The information captured in the extension record can be organized to have a more
 * one _extension_ element groups together several _extension instances_ - different installations of the same extension, with different or similar versions and configurations. This differentiation is needed to support requirements related to multi-instance.
 * several individual _services_, which can be consumed separately, can be provided by the same _extension instance_. For example, an MLFlow instance is composed of an experiment tracking service/API, a model store service and a UI. A _service_ is represented by a single API or UI. We could try to model services as children immediately under the _extension_ top-level element, but it works better to use the instance as a parent, given that we're more interested in service _instances_. For extensions implemented as cloud-native applications, a _service_ is the equivalent of a k8s service that is used to expose a public API or UI. _Services_ should also be classified into known categories (e.g. s3, git), to make it easier to support portable workflows (see optional requirements), where a workflow step lists a service category as a requirement, and FuseML automatically resolves that to whatever particular service instance is available at runtime.
 * a _service_ is exposed through several individual _endpoints_. Having a list of _endpoints_ associated with a single _service_ is particularly important for representing k8s services, which can be exposed both internally (cluster IP) and externally (e.g. ingress). Depending on the consumer location, FuseML can choose the endpoint that is accessible to and closer to the consumer. All _endpoints_ grouped under the same _service_ must be equivalent in the sense that they are backed by the same API and/or protocol.
-* _services_ under the same _instance_ can be accessed using one of several sets of _credentials_. A set of _credentials_ can be generally used to embed information pertaining to the authentication and authorization features supported by a service or a group of services. This element allows administrators and operators of 3rd party tools integrated with FuseML to configure different accounts and credentials (tokens, certificates, passwords) to be associated with different FuseML organization entities (users, projects, groups etc.). All information embedded in a _credentials_ entry is treated as sensitive information. In the future, we could further specialize this element to model a predefined list of supported standard authentication and authorization schemes. Each _credentials_ entry has an associated scope that controls who has access to this information (e.g. global, project, user, workflow). This is the equivalent of a k8s secret. _Credentials_ are configured globally for an extension _instance_ and can be associated with individual services and endpoints.
+* a _service_ can be accessed using one of several sets of _credentials_. A set of _credentials_ can be generally used to embed information pertaining to the authentication and authorization features supported by a service. This element allows administrators and operators of 3rd party tools integrated with FuseML to configure different accounts and credentials (tokens, certificates, passwords) to be associated with different FuseML organization entities (users, projects, groups etc.). All information embedded in a _credentials_ entry is treated as sensitive information. In the future, we could further specialize this element to model a predefined list of supported standard authentication and authorization schemes. Each _credentials_ entry has an associated scope that controls who has access to this information (e.g. global, project, user, workflow). This is the equivalent of a k8s secret.
 * _configuration_ elements can be present under _extension instances_, _services_, _endpoints_ or _credentials_ and represent opaque, service specific configuration data that the consumers need in order to access and consume a service interface. _Configuration_ elements can be used to encode any information relevant for service clients: accounts and credentials, information describing the service or particular parameters that describe how the service should be used. For example, if endpoints are SSL secured, custom certificates (e.g. self-signed CA certificates) might be needed to access them and this should be included in the endpoint configuration. The information encoded in a _configuration_ element is only treated as sensitive information when present under a _profile_. Equivalent of a k8s configmap (or k8s secret, when under _profile_). 
 
 Examples:
@@ -243,7 +243,13 @@ Examples:
           service: s3
           description: MLFlow minio S3 storage back-end
           credentials:
-            - default-s3-account
+            - name: default-s3-account
+              scope: global
+              configuration:
+                - name: AWS_ACCESS_KEY_ID
+                  value: 24oT0SfbJPEu6kUbUKsH
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
           endpoints:
             - name: cluster
               url: http://mlflow-minio:9000
@@ -252,14 +258,6 @@ Examples:
               url: http://mlflow.10.110.120.130.nip.io
               type: external
               default: True
-      credentials:
-        - name: default-s3-account
-          scope: global
-          configuration:
-            - name: AWS_ACCESS_KEY_ID
-              value: 24oT0SfbJPEu6kUbUKsH
-            - name: AWS_SECRET_ACCESS_KEY
-              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
   ```
 
 2. example showing that the minio sub-service from the previous MLFlow instance can also be registered as a generic minio/S3 service, although this is not recommended, because even though the s3 service can be consumed independently of the parent product instance, the way that data is organized and stored in the s3 back-end is specific to MLFlow and should be discoverable as such:
@@ -277,7 +275,13 @@ Examples:
           service: s3
           description: MLFlow minio S3 storage back-end
           credentials:
-            - default
+            - name: default
+              scope: global
+              configuration:
+                - name: AWS_ACCESS_KEY_ID
+                  value: 24oT0SfbJPEu6kUbUKsH
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
           endpoints:
             - name: cluster
               url: http://mlflow-minio:9000
@@ -286,14 +290,6 @@ Examples:
               url: http://mlflow.10.110.120.130.nip.io
               type: external
               default: True
-      credentials:
-        - name: default
-          scope: global
-          configuration:
-            - name: AWS_ACCESS_KEY_ID
-              value: 24oT0SfbJPEu6kUbUKsH
-            - name: AWS_SECRET_ACCESS_KEY
-              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
   ```
 
 3. example of an extension record for a third party gitea instance hosted in a location other than FuseML where each FuseML project is associated with a Gitea user
@@ -316,15 +312,13 @@ Examples:
               type: external
               default: True
           credentials:
-            - default
-      credentials:
-        - name: admin
-          scope: global
-          configuration:
-            - name: username
-              value: admin
-            - name: password
-              value: 8KqS5xWQ4eagRu
+            - name: admin
+              scope: global
+              configuration:
+                - name: username
+                  value: admin
+                - name: password
+                  value: 8KqS5xWQ4eagRu
   ```
 
 4. example showing that the extension root element can be used to host different instances of different tools/services, even though this is not recommended:
@@ -342,7 +336,13 @@ Examples:
           service: s3
           description: Minio S3 storage deployed locally
           credentials:
-            - local-minio
+            - name: local-minio
+              scope: global
+              configuration:
+                - name: AWS_ACCESS_KEY_ID
+                  value: 24oT0SfbJPEu6kUbUKsH
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
           endpoints:
             - name: cluster
               url: http://mlflow-minio:9000
@@ -359,27 +359,18 @@ Examples:
           service: s3
           description: AWS S3 storage
           credentials:
-            - AWS-S3
+            - name: aws
+              scope: global
+              configuration:
+                - name: AWS_ACCESS_KEY_ID
+                  value: sWRS24oT0SfbJPEu6kU3EWf
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: abl4SDcMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0s
           endpoints:
             - name: s3.amazon.com
               url: https://s3.amazonaws.com
               type: external
               default: True
-      credentials:
-        - name: local-minio
-          scope: global
-          configuration:
-            - name: AWS_ACCESS_KEY_ID
-              value: 24oT0SfbJPEu6kUbUKsH
-            - name: AWS_SECRET_ACCESS_KEY
-              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
-        - name: aws
-          scope: global
-          configuration:
-            - name: AWS_ACCESS_KEY_ID
-              value: sWRS24oT0SfbJPEu6kU3EWf
-            - name: AWS_SECRET_ACCESS_KEY
-              value: abl4SDcMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0s
   ```
 5. KFServing as an example of a k8s controller running in the same cluster as FuseML
 
@@ -423,8 +414,28 @@ Examples:
           service: seldon-core-api
           description: Seldon Core CRDs
           credentials:
-            - project-alpha
-            - project-beta
+            - name: project-alpha
+              scope: project
+              project:
+                - alpha
+              configuration:
+                - name: CLIENT_CERT
+                  value: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQNBVEUtLS0tLQo=
+                - name: CLIENT_KEY
+                  value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+                - name: namespace
+                  value: prj_xbs228
+            - name: project-beta
+              scope: project
+              project:
+                - beta
+              configuration:
+                - name: CLIENT_CERT
+                  value: GHLS0t1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQWRxZ0F3BVEUtLS0tLQo=
+                - name: CLIENT_KEY
+                  value: TyGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
+                - name: namespace
+                  value: prj_hys568
           endpoints:
             - name: cluster
               url: https://production-cluster-xasf.example.com:6443
@@ -435,29 +446,6 @@ Examples:
               value: VsSCsdfLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1anF1TT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
             - name: INSECURE
               value: False
-      credentials:
-        - name: project-alpha
-          scope: project
-          project:
-            - alpha
-          configuration:
-            - name: CLIENT_CERT
-              value: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQNBVEUtLS0tLQo=
-            - name: CLIENT_KEY
-              value: cMGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
-            - name: namespace
-              value: prj_xbs228
-        - name: project-beta
-          scope: project
-          project:
-            - beta
-          configuration:
-            - name: CLIENT_CERT
-              value: GHLS0t1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQWRxZ0F3BVEUtLS0tLQo=
-            - name: CLIENT_KEY
-              value: TyGiZff8KqS5xWQ4eagRujh1tDcbQyRP0bEJSBOf
-            - name: namespace
-              value: prj_hys568
   ```
 
 With the extended extension model, referencing an extension from a workflow allows for more flexibility. We're still limited by the fact that the FuseML core service must be able to _unambiguously_ resolve the information given in the workflow to a particular extension endpoint and a set of credentials (if present). The updated workflow model should allow users to explicitly point to an extension endpoint and set of credentials. It should also allow users to reference a type of service using identifiers that are universally valid (i.e. valid across FuseML installations), to facilitate support for reusable workflows.
