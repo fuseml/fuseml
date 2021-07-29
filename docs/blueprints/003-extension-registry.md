@@ -502,6 +502,29 @@ With the extended extension model, referencing an extension from a workflow allo
         - name: prediction-url
   ```
 
+3. example of a minimal reference, specifying only the service type
+
+  ```yaml
+  [...]
+  steps:
+  [...]
+    - name: trainer
+      image: '{{ steps.builder.outputs.mlflow-env }}'
+      inputs:
+        - codeset:
+            name: '{{ inputs.mlflow-codeset }}'
+            path: '/project'
+      extensions:
+        - name: mlflow-tracker
+          service: mlflow-tracker
+        - name: mlflow-storage
+          service: mlflow-storage
+      outputs:
+        - name: mlflow-model-url
+  ```
+
+
+
 The other workflow model modification is with respect to how information from the extension record is provided to the workflow step containers:
 
 * as a default, the extension endpoint record in YAML format could be saved as a secret and/or configmap and mounted in the container at a predefined root path (similarly to how it's done for inputs)
