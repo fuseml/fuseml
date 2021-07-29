@@ -306,13 +306,29 @@ func (e *Extension) uninstallKustomize(path, ns string) error {
 }
 
 // TODO move under helpers
-func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) error {
+func (e *Extension) installHelmChart(ui *ui.UI, name, chartPath, ns, valuesPath string) error {
 
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
 	}
 	defer os.RemoveAll(tmpDir)
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	helmCmd := fmt.Sprintf("helm list --namespace %s --deployed -q | grep %s", ns, name)
+	if ns == "" {
+		helmCmd = fmt.Sprintf("helm list --deployed -q | grep %s", name)
+	}
+
+	out, _ := helpers.RunProc(helmCmd, currentdir, e.Debug)
+	if strings.TrimSpace(out) == name {
+		ui.Exclamation().Msg(fmt.Sprintf("%s chart already present, skipping installation", name))
+		return nil
+	}
 
 	tarName := filepath.Base(chartPath)
 	if err = helpers.DownloadFile(chartPath, tarName, tmpDir); err != nil {
@@ -329,13 +345,9 @@ func (e *Extension) installHelmChart(name, chartPath, ns, valuesPath string) err
 		}
 	}
 
-	helmCmd := fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
+	helmCmd = fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
 	if ns == "" {
 		helmCmd = fmt.Sprintf("helm install %s --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
-	}
-	currentdir, err := os.Getwd()
-	if err != nil {
-		return err
 	}
 	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
 		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
@@ -472,7 +484,7 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 		switch step.Type {
 		case "helm":
-			err := e.installHelmChart(e.Name, step.Location, ns, step.Values)
+			err := e.installHelmChart(ui, e.Name, step.Location, ns, step.Values)
 			if err != nil {
 				return errors.Wrap(err, "failed to install helm package from "+step.Location)
 			}
@@ -553,8 +565,6 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			return err
 		}
 	}
-
-	// TODO wait for some pod to exist/run? Extra option in the description file
 
 	// create istio gateways if required
 	if c.HasIstio() && len(e.Desc.Gateways) > 0 {
