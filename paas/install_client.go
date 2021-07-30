@@ -139,6 +139,30 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	return nil
 }
 
+// find out the required extensions for an extension that is passed as an argument
+// return list of all requirements, including the given extension itself
+func getRequirementsForExtension(extension *deployments.Extension, repo string) ([]*deployments.Extension, error) {
+
+	ret := []*deployments.Extension{}
+	name := extension.Name
+	err := extension.LoadDescription()
+	if err != nil {
+		return ret, errors.New(fmt.Sprintf("Failed to load description file of required extension %s: %s", name, err.Error()))
+	}
+
+	for _, req := range extension.Desc.Requires {
+
+		reqExt := deployments.NewExtension(req, repo, DefaultTimeoutSec)
+		sortedRequiredExtensions, _ := getRequirementsForExtension(reqExt, repo)
+
+		for _, e := range sortedRequiredExtensions {
+			ret = append(ret, e)
+		}
+	}
+	ret = append(ret, extension)
+	return ret, nil
+}
+
 // install or uninstall given list of extensions
 func (c *InstallClient) handleExtensions(action string, extensions []string, options *kubernetes.InstallationOptions) error {
 
@@ -150,27 +174,48 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 	if err != nil {
 		return err
 	}
+	// we do not know the size as the list of needs to be eventually installed could be bigger than original
+	sortedExtensions := []*deployments.Extension{}
+	// remember what we've already added to the sorted queue and avoid duplicates
+	exensionsInQueue := make(map[string]bool)
 
+	// in first loop, go over extensions and find their dependencies
 	for _, name := range extensions {
-		c.ui.Note().Msg(fmt.Sprintf("Processing extension '%s'...", name))
 
 		extension := deployments.NewExtension(name, extensionRepo.Value.(string), DefaultTimeoutSec)
 
-		err := extension.LoadDescription()
+		requiredExtensions, err := getRequirementsForExtension(extension, extensionRepo.Value.(string))
 		if err != nil {
-			return errors.New(fmt.Sprintf("Failed to load description file of extension %s: %s", name, err.Error()))
+			return err
 		}
+
+		for _, e := range requiredExtensions {
+			if !exensionsInQueue[e.Name] {
+				// for uninstallation, the order must be reversed
+				if action == "install" {
+					sortedExtensions = append(sortedExtensions, e)
+				} else {
+					sortedExtensions = append([]*deployments.Extension{e}, sortedExtensions...)
+				}
+				exensionsInQueue[e.Name] = true
+			}
+		}
+	}
+
+	for _, extension := range sortedExtensions {
 
 		switch action {
 		case "install":
+			c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", extension.Name))
 			err = extension.Install(c.kubeClient, c.ui, options)
 			if err != nil {
-				return errors.New(fmt.Sprintf("Failed to install extension %s: %s", name, err.Error()))
+				return errors.New(fmt.Sprintf("Failed to install extension %s: %s", extension.Name, err.Error()))
 			}
 		case "uninstall":
+			c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
 			err = extension.Uninstall(c.kubeClient, c.ui, options)
 			if err != nil {
-				return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", name, err.Error()))
+				return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
 			}
 
 		default:

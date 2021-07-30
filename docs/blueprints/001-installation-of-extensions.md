@@ -126,6 +126,8 @@ name: knative
 description: |
   Kubernetes-based platform to deploy and manage modern serverless workloads.
 namespace: knative-serving
+requires:
+  - cert-manager
 install:
   - type: script
     location: install.sh
@@ -157,6 +159,8 @@ To distinguish from instalation description files, we just need to pick proper d
 
 `extensions/charts` for Helm charts
 
-### Not covered
+### Dependencies
 
-Dependencies between components.
+Extensions can depend one on another. If a description file contains `requires` field, the value is expected to be a list of names of other extensions that are considered requirements for current one.
+
+Fuseml-installer will take care that such required extensions get installed in the right order, so they do not need to be explicitly listed on the command line.
