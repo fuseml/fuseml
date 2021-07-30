@@ -50,6 +50,7 @@ type extensionDesc struct {
 	Name        string
 	Description string
 	Namespace   string
+	Requires    []string
 	Install     []installStep
 	Uninstall   []installStep
 	Gateways    []istioGateway
@@ -60,14 +61,14 @@ type Extension struct {
 	Repository string
 	Debug      bool
 	Timeout    int
-	desc       *extensionDesc
+	Desc       *extensionDesc
 }
 
 func NewExtension(name, repository string, timeout int) *Extension {
 	return &Extension{
 		Name:       name,
 		Repository: repository,
-		desc:       &extensionDesc{},
+		Desc:       &extensionDesc{},
 		Debug:      false,
 		Timeout:    timeout,
 	}
@@ -115,7 +116,7 @@ func (e *Extension) LoadDescription() error {
 		return errors.Wrap(err, "failed to read description file")
 	}
 
-	err = yaml.Unmarshal(data, &e.desc)
+	err = yaml.Unmarshal(data, &e.Desc)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse description file")
 	}
@@ -402,9 +403,9 @@ func createNamespace(c *kubernetes.Cluster, ns string) error {
 
 func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
-	namespace := e.desc.Namespace
+	namespace := e.Desc.Namespace
 	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
-	for _, step := range e.desc.Uninstall {
+	for _, step := range e.Desc.Uninstall {
 
 		ns := step.Namespace
 		if ns == "" {
@@ -444,8 +445,8 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 		}
 	}
 	// delete namespace if it was specific to extension
-	if e.desc.Namespace != "" {
-		if err := deleteNamespace(c, ui, e.desc.Namespace); err != nil {
+	if e.Desc.Namespace != "" {
+		if err := deleteNamespace(c, ui, e.Desc.Namespace); err != nil {
 			return err
 		}
 	}
@@ -454,14 +455,14 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 
 func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
-	namespace := e.desc.Namespace
+	namespace := e.Desc.Namespace
 	if namespace != "" {
 		if err := createNamespace(c, namespace); err != nil {
 			return err
 		}
 	}
 	// based on installation type (script/helm/manifest), proceed with execution of each install step
-	for _, step := range e.desc.Install {
+	for _, step := range e.Desc.Install {
 		ns := step.Namespace
 		if ns != namespace && ns != "" {
 			if err := createNamespace(c, ns); err != nil {
@@ -543,9 +544,9 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 	}
 
-	if e.desc.Namespace != "" {
+	if e.Desc.Namespace != "" {
 		err := c.LabelNamespace(
-			e.desc.Namespace,
+			e.Desc.Namespace,
 			kubernetes.FusemlDeploymentLabelKey,
 			kubernetes.FusemlDeploymentLabelValue)
 		if err != nil {
@@ -556,13 +557,13 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 	// TODO wait for some pod to exist/run? Extra option in the description file
 
 	// create istio gateways if required
-	if c.HasIstio() && len(e.desc.Gateways) > 0 {
+	if c.HasIstio() && len(e.Desc.Gateways) > 0 {
 		domain, err := options.GetString("system_domain", "")
 		if err != nil {
 			return errors.New("system_domain value not provided")
 		}
 
-		for _, g := range e.desc.Gateways {
+		for _, g := range e.Desc.Gateways {
 
 			message := "Creating istio ingress gateway for " + g.Name
 			subdomain := g.Name + "." + domain
