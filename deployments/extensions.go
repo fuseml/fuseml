@@ -42,6 +42,7 @@ type installStep struct {
 }
 
 type istioGateway struct {
+	Namespace   string
 	Name        string
 	Port        int
 	ServiceHost string
@@ -477,10 +478,13 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 	// based on installation type (script/helm/manifest), proceed with execution of each install step
 	for _, step := range e.Desc.Install {
 		ns := step.Namespace
-		if ns != namespace && ns != "" {
+		if ns != "" {
 			if err := createNamespace(c, ns); err != nil {
 				return err
 			}
+		} else {
+			// use the top namespace (it can still be empty though)
+			ns = namespace
 		}
 
 		switch step.Type {
@@ -576,11 +580,16 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 		for _, g := range e.Desc.Gateways {
 
+			ns := g.Namespace
+			if ns == "" {
+				ns = namespace
+			}
+
 			message := "Creating istio ingress gateway for " + g.Name
 			subdomain := g.Name + "." + domain
 			out, err := helpers.WaitForCommandCompletion(ui, message,
 				func() (string, error) {
-					return helpers.CreateIstioIngressGateway(g.Name, namespace, subdomain, g.ServiceHost, g.Port)
+					return helpers.CreateIstioIngressGateway(g.Name, ns, subdomain, g.ServiceHost, g.Port)
 				},
 			)
 			if err != nil {
