@@ -211,6 +211,12 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 			if err != nil {
 				return errors.New(fmt.Sprintf("Failed to install extension %s: %s", extension.Name, err.Error()))
 			}
+
+			c.ui.Note().Msg(fmt.Sprintf("Registering extension '%s'...", extension.Name))
+			err = extension.Register(c.kubeClient, c.ui, options)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Failed to register extension %s: %s", extension.Name, err.Error()))
+			}
 		case "uninstall":
 			c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
 			err = extension.Uninstall(c.kubeClient, c.ui, options)
