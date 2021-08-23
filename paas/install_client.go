@@ -224,6 +224,11 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 				return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
 			}
 
+			c.ui.Note().Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
+			err = extension.UnRegister(c.kubeClient, c.ui, options)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Failed to unregister extension %s: %s", extension.Name, err.Error()))
+			}
 		default:
 			return errors.New(fmt.Sprintf("Unsupported action %s", action))
 		}
@@ -252,6 +257,17 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 
 	details.Info("show option configuration")
 	c.showInstallConfiguration(options)
+
+	domain, err := options.GetOpt("system_domain", "")
+	if err != nil {
+		return err
+	}
+
+	details.Info("ensure system-domain")
+	err = c.fillInMissingSystemDomain(domain)
+	if err != nil {
+		return err
+	}
 
 	extensions, err := options.GetOpt("extensions", "")
 	if err != nil {

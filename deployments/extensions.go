@@ -548,7 +548,7 @@ func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubern
 	}
 
 	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
-	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Product)
+	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Name)
 
 	// no direct Delete method so we have to create a client and a request
 	client := &http.Client{}
@@ -574,14 +574,11 @@ func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubern
 		return nil
 	}
 
-	fmt.Println("response from DELETE: ", resp.StatusCode)
-
-	// something else is wrong, read the response from POST call
+	// something else is wrong, read the response from DELETE call
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, resp.Body)
 
 	return errors.New(fmt.Sprintf("Failed unregistering the extension. Server returns %s: ", buf.String()))
->>>>>>> 7efacd6... install
 }
 
 // Register extension in the registry that is run by fuseml-core server

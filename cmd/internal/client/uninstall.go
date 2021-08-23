@@ -10,6 +10,13 @@ import (
 
 var uninstallOptions = kubernetes.InstallationOptions{
 	{
+		Name:        "system_domain",
+		Description: "The domain used by FuseML. Should be pointing to the load balancer public IP (Leave empty to use a nip.io domain).",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
 		Name:        "extensions",
 		Description: "ML extensions to uninstall when uninstalling FuseML",
 		Type:        kubernetes.ListType,
