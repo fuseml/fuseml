@@ -1,5 +1,5 @@
 # Tekton operator version
-TEKTON_OPERATOR_VERSION=v0.23.0-2
+TEKTON_OPERATOR_VERSION=v0.49.0
 
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
@@ -90,8 +90,8 @@ update_charts: update_registry
 
 update_tekton:
 	mkdir -p embedded-files/tekton/install
-	wget https://github.com/tektoncd/operator/releases/download/${TEKTON_OPERATOR_VERSION}/release.yaml -O embedded-files/tekton/operator.yaml
-	wget https://raw.githubusercontent.com/tektoncd/operator/${TEKTON_OPERATOR_VERSION}/config/crs/kubernetes/config/all/operator_v1alpha1_config_cr.yaml -O embedded-files/tekton/profile-all.yaml
+	wget https://github.com/tektoncd/operator/releases/download/${TEKTON_OPERATOR_VERSION}/release.yaml -O embedded-files/tekton/install/operator.yaml
+	wget https://raw.githubusercontent.com/tektoncd/operator/${TEKTON_OPERATOR_VERSION}/config/crs/kubernetes/config/all/operator_v1alpha1_config_cr.yaml -O embedded-files/tekton/install/profile-all.yaml
 
 embed_files: tools
 	statik -m -f -src=./embedded-files
