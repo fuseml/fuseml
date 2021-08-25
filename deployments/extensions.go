@@ -581,6 +581,25 @@ func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubern
 	return errors.New(fmt.Sprintf("Failed unregistering the extension. Server returns %s: ", buf.String()))
 }
 
+// Check if an extension is already registered
+// argument is the URL of the FuseML service
+func (e *Extension) isExtensionRegistered(fusemlURL string) (bool, error) {
+
+	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Name)
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 {
+		return true, nil
+	} else if resp.StatusCode == 404 {
+		return false, nil
+	}
+	return false, errors.New(fmt.Sprintf("Unexpected response from registry: %d", resp.StatusCode))
+}
+
 // Register extension in the registry that is run by fuseml-core server
 func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
@@ -590,6 +609,15 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 	}
 
 	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
+
+	registered, err := e.isExtensionRegistered(fusemlURL)
+	if err != nil {
+		return err
+	}
+	if registered {
+		ui.Exclamation().Msg(fmt.Sprintf("Extension %s is already registered; if you want to update it, delete it first", e.Name))
+		return nil
+	}
 	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
 
 	extServices := []*registeredExtensionService{}
