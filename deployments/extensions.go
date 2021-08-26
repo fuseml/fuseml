@@ -1,9 +1,13 @@
 package deployments
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -48,14 +52,83 @@ type istioGateway struct {
 	ServiceHost string
 }
 
+// extension structurs necessary to build a payload for extension registry
+// (copied from fuseml-core/gen/extension/service.go for now...)
+type registeredExtensionService struct {
+	ID           *string
+	ExtensionID  *string
+	Resource     *string
+	Category     *string
+	Description  *string
+	AuthRequired *bool
+	Status       *registeredExtensionServiceStatus
+	Endpoints    []*registeredExtensionEndpoint
+	Credentials  []*registeredExtensionCredentials
+}
+
+// extension information as expected by extension registry
+type registeredExtension struct {
+	ID            *string
+	Product       *string
+	Version       *string
+	Description   *string
+	Zone          *string
+	Configuration map[string]string
+	Status        *registeredExtensionStatus
+	Services      []*registeredExtensionService
+}
+
+type registeredExtensionEndpoint struct {
+	URL           *string
+	ExtensionID   *string
+	ServiceID     *string
+	Type          *string
+	Configuration map[string]string
+	Status        *registeredExtensionEndpointStatus
+}
+
+type registeredExtensionCredentials struct {
+	ID            *string
+	ExtensionID   *string
+	ServiceID     *string
+	Default       *bool
+	Scope         *string
+	Projects      []string
+	Users         []string
+	Configuration map[string]string
+	Status        *registeredExtensionCredentialsStatus
+}
+
+type registeredExtensionCredentialsStatus struct {
+	Created string
+	Updated string
+}
+
+type registeredExtensionStatus struct {
+	Registered string
+	Updated    string
+}
+
+type registeredExtensionServiceStatus struct {
+	Registered string
+	Updated    string
+}
+
+type registeredExtensionEndpointStatus struct {
+}
+
 type extensionDesc struct {
 	Name        string
+	Product     string
+	Version     string
 	Description string
 	Namespace   string
+	Zone        string
 	Requires    []string
 	Install     []installStep
 	Uninstall   []installStep
 	Gateways    []istioGateway
+	Services    []registeredExtensionService
 }
 
 type Extension struct {
@@ -465,6 +538,152 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 		}
 	}
 	return nil
+}
+
+// Unregister extension from the extension registry
+func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
+	domain, err := options.GetString("system_domain", "")
+	if err != nil {
+		return errors.New("system_domain value not provided")
+	}
+
+	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
+	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Name)
+
+	// no direct Delete method so we have to create a client and a request
+	client := &http.Client{}
+
+	req, err := http.NewRequest("DELETE", fullURL, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 204 {
+		return nil
+	}
+
+	// no such extension found, that might be OK...
+	if resp.StatusCode == 404 {
+		return nil
+	}
+
+	// something else is wrong, read the response from DELETE call
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, resp.Body)
+
+	return errors.New(fmt.Sprintf("Failed unregistering the extension. Server returns %s: ", buf.String()))
+}
+
+// Check if an extension is already registered
+// argument is the URL of the FuseML service
+func (e *Extension) isExtensionRegistered(fusemlURL string) (bool, error) {
+
+	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Name)
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 {
+		return true, nil
+	} else if resp.StatusCode == 404 {
+		return false, nil
+	}
+	return false, errors.New(fmt.Sprintf("Unexpected response from registry: %d", resp.StatusCode))
+}
+
+// Register extension in the registry that is run by fuseml-core server
+func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
+
+	domain, err := options.GetString("system_domain", "")
+	if err != nil {
+		return errors.New("system_domain value not provided")
+	}
+
+	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
+
+	registered, err := e.isExtensionRegistered(fusemlURL)
+	if err != nil {
+		return err
+	}
+	if registered {
+		ui.Exclamation().Msg(fmt.Sprintf("Extension %s is already registered; if you want to update it, delete it first", e.Name))
+		return nil
+	}
+	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
+
+	extServices := []*registeredExtensionService{}
+	for _, service := range e.Desc.Services {
+		extServiceEndpoints := []*registeredExtensionEndpoint{}
+		for _, endpoint := range service.Endpoints {
+			serviceEndpoint := registeredExtensionEndpoint{
+				URL:           endpoint.URL,
+				Type:          endpoint.Type,
+				Configuration: endpoint.Configuration,
+			}
+			extServiceEndpoints = append(extServiceEndpoints, &serviceEndpoint)
+		}
+
+		extServiceCredentials := []*registeredExtensionCredentials{}
+		for _, creds := range service.Credentials {
+			serviceCredentials := registeredExtensionCredentials{
+				ID:            creds.ID,
+				Default:       creds.Default,
+				Scope:         creds.Scope,
+				Projects:      creds.Projects,
+				Users:         creds.Users,
+				Configuration: creds.Configuration,
+			}
+			extServiceCredentials = append(extServiceCredentials, &serviceCredentials)
+		}
+
+		extService := registeredExtensionService{
+			ID:           service.ID,
+			Resource:     service.Resource,
+			Category:     service.Category,
+			Description:  service.Description,
+			AuthRequired: service.AuthRequired,
+			Endpoints:    extServiceEndpoints,
+			Credentials:  extServiceCredentials,
+		}
+		extServices = append(extServices, &extService)
+	}
+
+	ext := registeredExtension{
+		ID:          &e.Name,
+		Product:     &e.Desc.Product,
+		Version:     &e.Desc.Version,
+		Description: &e.Desc.Description,
+		Services:    extServices,
+	}
+
+	jsonValue, err := json.Marshal(ext)
+	if err != nil {
+		return err
+	}
+	resp, err := http.Post(fullURL, "application/json", bytes.NewBuffer(jsonValue))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 201 {
+		return nil
+	}
+
+	// something wrong, read the response from POST call
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, resp.Body)
+
+	return errors.New(fmt.Sprintf("Failed registering the extension. Server returns %s: ", buf.String()))
 }
 
 func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
