@@ -238,6 +238,16 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 
 func (c *InstallClient) listRegisteredExtensions(options *kubernetes.InstallationOptions) error {
 
+	exts, err := deployments.GetRegisteredExtensions(options)
+	if err != nil {
+		return err
+	}
+	msg := c.ui.Success().WithTable("Name", "Version", "Description")
+	for _, ext := range exts {
+		msg = msg.WithTableRow(*ext.ID, *ext.Version, *ext.Description)
+	}
+	msg.Msg("Registered FuseML extensions:")
+
 	return nil
 }
 
