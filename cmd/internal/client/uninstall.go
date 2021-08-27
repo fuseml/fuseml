@@ -34,8 +34,8 @@ var uninstallOptions = kubernetes.InstallationOptions{
 
 var CmdUninstall = &cobra.Command{
 	Use:           "uninstall",
-	Short:         "uninstall Fuseml from your configured kubernetes cluster",
-	Long:          `uninstall Fuseml PaaS from your configured kubernetes cluster`,
+	Short:         "Uninstall Fuseml from your configured kubernetes cluster",
+	Long:          `Uninstall Fuseml PaaS from your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Uninstall,
 	SilenceErrors: true,
