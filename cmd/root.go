@@ -54,6 +54,7 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdUninstall)
 	rootCmd.AddCommand(client.CmdUpgrade)
+	rootCmd.AddCommand(client.CmdExtensions)
 	rootCmd.AddCommand(client.CmdInfo)
 	rootCmd.AddCommand(client.CmdVersion)
 

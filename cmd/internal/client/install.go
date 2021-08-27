@@ -38,8 +38,8 @@ const (
 
 var CmdInstall = &cobra.Command{
 	Use:           "install",
-	Short:         "install FuseML in your configured kubernetes cluster",
-	Long:          `install FuseML in your configured kubernetes cluster`,
+	Short:         "Install FuseML in your configured kubernetes cluster",
+	Long:          `Install FuseML in your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Install,
 	SilenceErrors: true,

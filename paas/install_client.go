@@ -236,6 +236,11 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 	return nil
 }
 
+func (c *InstallClient) listRegisteredExtensions(options *kubernetes.InstallationOptions) error {
+
+	return nil
+}
+
 // Uninstall removes fuseml from the cluster.
 func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
 	log := c.Log.WithName("Uninstall")
@@ -323,6 +328,66 @@ func (c *InstallClient) Upgrade(cmd *cobra.Command, options *kubernetes.Installa
 	}
 
 	c.ui.Success().Msg("FuseML upgraded.")
+
+	return nil
+}
+
+func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
+	log := c.Log.WithName("Extensions")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1)
+
+	c.ui.Note().Msg("FuseML handling the extensions...")
+
+	details.Info("process cli options")
+	options, err := options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	if err != nil {
+		return err
+	}
+	details.Info("fill defaults into options")
+	options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
+	if err != nil {
+		return err
+	}
+
+	domain, err := options.GetOpt("system_domain", "")
+	if err != nil {
+		return err
+	}
+
+	details.Info("ensure system-domain")
+	err = c.fillInMissingSystemDomain(domain)
+	if err != nil {
+		return err
+	}
+
+	addExtensions, err := options.GetOpt("add", "")
+	if err != nil {
+		return err
+	}
+
+	if err := c.handleExtensions("install", addExtensions.Value.([]string), options); err != nil {
+		return err
+	}
+
+	removeExtensions, err := options.GetOpt("remove", "")
+	if err != nil {
+		return err
+	}
+	if err := c.handleExtensions("uninstall", removeExtensions.Value.([]string), options); err != nil {
+		return err
+	}
+
+	doList, err := options.GetBool("list", "")
+	if err != nil {
+		return err
+	}
+	if doList {
+		if err := c.listRegisteredExtensions(options); err != nil {
+			return nil
+		}
+	}
 
 	return nil
 }

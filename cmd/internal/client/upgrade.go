@@ -23,8 +23,8 @@ func init() {
 
 var CmdUpgrade = &cobra.Command{
 	Use:           "upgrade",
-	Short:         "upgrade FuseML in your configured kubernetes cluster",
-	Long:          `upgrade FuseML in your configured kubernetes cluster`,
+	Short:         "Upgrade FuseML in your configured kubernetes cluster",
+	Long:          `Upgrade FuseML in your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Upgrade,
 	SilenceErrors: true,
