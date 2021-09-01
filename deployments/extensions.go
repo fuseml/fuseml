@@ -117,26 +117,46 @@ type registeredExtensionServiceStatus struct {
 type registeredExtensionEndpointStatus struct {
 }
 
-type extensionDesc struct {
-	Name        string
-	Product     string
-	Version     string
-	Description string
+// serviceCredentialTemplate describes the way how to generate service credentials
+type serviceCredentialTemplate struct {
+	ServiceID   string
+	Credentials []credentialTemplate
+}
+
+type credentialTemplate struct {
+	ID        string
+	Transform []credentialTransformValue
+}
+
+type credentialTransformValue struct {
+	ConfigValue string
+	SecretValue string
+	Secret      string
 	Namespace   string
-	Zone        string
-	Requires    []string
-	Install     []installStep
-	Uninstall   []installStep
-	Gateways    []istioGateway
-	Services    []registeredExtensionService
+}
+
+type extensionDesc struct {
+	Name               string
+	Product            string
+	Version            string
+	Description        string
+	Namespace          string
+	Zone               string
+	Requires           []string
+	Install            []installStep
+	Uninstall          []installStep
+	Gateways           []istioGateway
+	Services           []registeredExtensionService
+	ServiceCredentials []serviceCredentialTemplate
 }
 
 type Extension struct {
-	Name       string
-	Repository string
-	Debug      bool
-	Timeout    int
-	Desc       *extensionDesc
+	Name                   string
+	Repository             string
+	Debug                  bool
+	Timeout                int
+	Desc                   *extensionDesc
+	TransformedCredentials map[string]map[string]map[string]string
 }
 
 func NewExtension(name, repository string, timeout int) *Extension {
@@ -195,6 +215,7 @@ func (e *Extension) LoadDescription() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to parse description file")
 	}
+
 	return nil
 }
 
@@ -600,6 +621,30 @@ func (e *Extension) isExtensionRegistered(fusemlURL string) (bool, error) {
 	return false, errors.New(fmt.Sprintf("Unexpected response from registry: %d", resp.StatusCode))
 }
 
+// createTransformMaps goes through the 'servicecredentials' section in the description file
+// and for each service/credential combination it fetches the right value from Kubernetes using
+// the transformation rules written in said section
+func (e *Extension) createTransformMaps(c *kubernetes.Cluster) error {
+	// maps service id to map of credentials which maps credential id to value map, e.g.:
+	// mlflow-store : { default-s3-account : { key1: value1, key2: value2 } }
+	e.TransformedCredentials = make(map[string]map[string]map[string]string)
+	for _, service := range e.Desc.ServiceCredentials {
+		e.TransformedCredentials[service.ServiceID] = make(map[string]map[string]string)
+		for _, cred := range service.Credentials {
+			e.TransformedCredentials[service.ServiceID][cred.ID] = make(map[string]string)
+			for _, transform := range cred.Transform {
+				// now find the right value and save it to the map
+				secret, err := c.GetSecret(transform.Namespace, transform.Secret)
+				if err != nil {
+					return err
+				}
+				e.TransformedCredentials[service.ServiceID][cred.ID][transform.ConfigValue] = string(secret.Data[transform.SecretValue])
+			}
+		}
+	}
+	return nil
+}
+
 // Register extension in the registry that is run by fuseml-core server
 func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
@@ -618,7 +663,10 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 		ui.Exclamation().Msg(fmt.Sprintf("Extension %s is already registered; if you want to update it, delete it first", e.Name))
 		return nil
 	}
-	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
+	err = e.createTransformMaps(c)
+	if err != nil {
+		return errors.Wrap(err, "Failed to transform values for credentials")
+	}
 
 	extServices := []*registeredExtensionService{}
 	for _, service := range e.Desc.Services {
@@ -640,7 +688,16 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 				Scope:         creds.Scope,
 				Projects:      creds.Projects,
 				Users:         creds.Users,
-				Configuration: creds.Configuration,
+				Configuration: make(map[string]string),
+			}
+			for key, val := range creds.Configuration {
+				serviceCredentials.Configuration[key] = val
+			}
+			// update credential Configuration with the values from Transform section
+			if e.TransformedCredentials[*service.ID][*creds.ID] != nil {
+				for key, val := range e.TransformedCredentials[*service.ID][*creds.ID] {
+					serviceCredentials.Configuration[key] = val
+				}
 			}
 			extServiceCredentials = append(extServiceCredentials, &serviceCredentials)
 		}
@@ -669,6 +726,8 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 	if err != nil {
 		return err
 	}
+	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
+
 	resp, err := http.Post(fullURL, "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		return err
