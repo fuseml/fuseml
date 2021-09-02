@@ -130,7 +130,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	if err != nil {
 		return err
 	}
-	if err := c.handleExtensions("install", extensions.Value.([]string), options); err != nil {
+	if err := c.handleExtensions("install", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
 
@@ -164,7 +164,7 @@ func getRequirementsForExtension(extension *deployments.Extension, repo string) 
 }
 
 // install or uninstall given list of extensions
-func (c *InstallClient) handleExtensions(action string, extensions []string, options *kubernetes.InstallationOptions) error {
+func (c *InstallClient) handleExtensions(action string, extensions []string, options *kubernetes.InstallationOptions, withDeps bool) error {
 
 	if len(extensions) == 0 {
 		return nil
@@ -191,10 +191,10 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 
 		for _, e := range requiredExtensions {
 			if !exensionsInQueue[e.Name] {
-				// for uninstallation, the order must be reversed
 				if action == "install" {
 					sortedExtensions = append(sortedExtensions, e)
 				} else {
+					// for uninstallation, the order must be reversed
 					sortedExtensions = append([]*deployments.Extension{e}, sortedExtensions...)
 				}
 				exensionsInQueue[e.Name] = true
@@ -218,16 +218,22 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 				return errors.New(fmt.Sprintf("Failed to register extension %s: %s", extension.Name, err.Error()))
 			}
 		case "uninstall":
-			c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
-			err = extension.Uninstall(c.kubeClient, c.ui, options)
-			if err != nil {
-				return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
-			}
+			// uninstall dependencies only when explicitly required on command line or with the command that uninstalls whole fuseml
+			// (https://github.com/fuseml/fuseml/issues/198)
+			if withDeps || helpers.StringInSlice(extensions, extension.Name) {
+				c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
+				err = extension.Uninstall(c.kubeClient, c.ui, options)
+				if err != nil {
+					return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
+				}
 
-			c.ui.Note().Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
-			err = extension.UnRegister(c.kubeClient, c.ui, options)
-			if err != nil {
-				return errors.New(fmt.Sprintf("Failed to unregister extension %s: %s", extension.Name, err.Error()))
+				c.ui.Note().Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
+				err = extension.UnRegister(c.kubeClient, c.ui, options)
+				if err != nil {
+					return errors.New(fmt.Sprintf("Failed to unregister extension %s: %s", extension.Name, err.Error()))
+				}
+			} else {
+				c.ui.Note().Msg(fmt.Sprintf("Skipped removal of extension '%s'", extension.Name))
 			}
 		default:
 			return errors.New(fmt.Sprintf("Unsupported action %s", action))
@@ -288,7 +294,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
-	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options); err != nil {
+	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
 
@@ -377,7 +383,7 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 
-	if err := c.handleExtensions("install", addExtensions.Value.([]string), options); err != nil {
+	if err := c.handleExtensions("install", addExtensions.Value.([]string), options, true); err != nil {
 		return err
 	}
 
@@ -385,7 +391,13 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 	if err != nil {
 		return err
 	}
-	if err := c.handleExtensions("uninstall", removeExtensions.Value.([]string), options); err != nil {
+
+	withDeps, err := options.GetBool("with_dependencies", "")
+	if err != nil {
+		return err
+	}
+
+	if err := c.handleExtensions("uninstall", removeExtensions.Value.([]string), options, withDeps); err != nil {
 		return err
 	}
 

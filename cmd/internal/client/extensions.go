@@ -31,6 +31,13 @@ var extensionsOptions = kubernetes.InstallationOptions{
 		Value:       []string{},
 	},
 	{
+		Name:        "with_dependencies",
+		Description: "When removing an extension, remove also all its required extensions",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       true,
+	},
+	{
 		Name:        "list",
 		Description: "List installed FuseML extensions",
 		Type:        kubernetes.BooleanType,
