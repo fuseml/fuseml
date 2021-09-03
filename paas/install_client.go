@@ -130,6 +130,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	if err != nil {
 		return err
 	}
+	details.Info("installing extensions")
 	if err := c.handleExtensions("install", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -221,16 +222,16 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 			// uninstall dependencies only when explicitly required on command line or with the command that uninstalls whole fuseml
 			// (https://github.com/fuseml/fuseml/issues/198)
 			if withDeps || helpers.StringInSlice(extensions, extension.Name) {
-				c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
-				err = extension.Uninstall(c.kubeClient, c.ui, options)
-				if err != nil {
-					return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
-				}
-
 				c.ui.Note().Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
 				err = extension.UnRegister(c.kubeClient, c.ui, options)
 				if err != nil {
 					return errors.New(fmt.Sprintf("Failed to unregister extension %s: %s", extension.Name, err.Error()))
+				}
+
+				c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
+				err = extension.Uninstall(c.kubeClient, c.ui, options)
+				if err != nil {
+					return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
 				}
 			} else {
 				c.ui.Note().Msg(fmt.Sprintf("Skipped removal of extension '%s'", extension.Name))
@@ -294,6 +295,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
+	details.Info("removing extensions")
 	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -383,6 +385,7 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 
+	details.Info("installing extensions")
 	if err := c.handleExtensions("install", addExtensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -397,6 +400,7 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 
+	details.Info("removing extensions")
 	if err := c.handleExtensions("uninstall", removeExtensions.Value.([]string), options, withDeps); err != nil {
 		return err
 	}
@@ -406,8 +410,9 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 	if doList {
+		details.Info("listing extensions")
 		if err := c.listRegisteredExtensions(options); err != nil {
-			return nil
+			return err
 		}
 	}
 
