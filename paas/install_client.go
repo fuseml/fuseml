@@ -130,6 +130,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	if err != nil {
 		return err
 	}
+	details.Info("installing extensions")
 	if err := c.handleExtensions("install", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -294,6 +295,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
+	details.Info("removing extensions")
 	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -383,6 +385,7 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 
+	details.Info("installing extensions")
 	if err := c.handleExtensions("install", addExtensions.Value.([]string), options, true); err != nil {
 		return err
 	}
@@ -397,6 +400,7 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 
+	details.Info("removing extensions")
 	if err := c.handleExtensions("uninstall", removeExtensions.Value.([]string), options, withDeps); err != nil {
 		return err
 	}
@@ -406,8 +410,9 @@ func (c *InstallClient) Extensions(cmd *cobra.Command, options *kubernetes.Insta
 		return err
 	}
 	if doList {
+		details.Info("listing extensions")
 		if err := c.listRegisteredExtensions(options); err != nil {
-			return nil
+			return err
 		}
 	}
 
