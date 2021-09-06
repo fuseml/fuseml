@@ -60,7 +60,29 @@ func (i Istio) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return nil
 	}
 
-	message := "Deleting Istio component namespace " + istioDeploymentNamespace
+	tmpDir, err := ioutil.TempDir("", "istio-uninstall")
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory")
+	}
+	defer os.Remove(tmpDir)
+
+	istioctl, err := i.fetchIstioctl(tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "can't download istioctl")
+	}
+
+	yamlPathOnDisk, err := helpers.ExtractFile(istioOperatorYamlPath)
+	if err != nil {
+		return errors.New("Failed to extract embedded file: " + istioOperatorYamlPath + " - " + err.Error())
+	}
+	defer os.Remove(yamlPathOnDisk)
+
+	fullCmd := istioctl + " manifest generate -f " + yamlPathOnDisk + "| kubectl delete --ignore-not-found -f -"
+	if out, err := helpers.RunProc(fullCmd, tmpDir, i.Debug); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Failed uninstalling istio: %s\n", out))
+	}
+
+	message := "Deleting Istio namespace " + istioDeploymentNamespace
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", c.DeleteNamespace(istioDeploymentNamespace)
@@ -113,32 +135,19 @@ func (i Istio) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 	}
 	defer os.Remove(tmpDir)
 
-	err = helpers.DownloadFile(istioFetchScriptURL, istioFetchScript, tmpDir)
+	istioctl, err := i.fetchIstioctl(tmpDir)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed downloading install script from %s: %s", istioFetchScriptURL, err.Error()))
-	}
-
-	pathToFetchScript := filepath.Join(tmpDir, istioFetchScript)
-
-	if err := os.Chmod(pathToFetchScript, 0750); err != nil {
-		return errors.New(fmt.Sprintf("Failed changing the file mode of %s", pathToFetchScript))
-	}
-
-	env := []string{"ISTIO_VERSION=" + i.GetVersion()}
-	if out, err := helpers.RunProcEnv(pathToFetchScript, tmpDir, i.Debug, env); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed downloading istio: %s\n", out))
+		return errors.Wrap(err, "can't download istioctl")
 	}
 
 	yamlPathOnDisk, err := helpers.ExtractFile(istioOperatorYamlPath)
 	if err != nil {
-		return errors.New("Failed to extract embedded file: " + coreDeploymentYamlPath + " - " + err.Error())
+		return errors.New("Failed to extract embedded file: " + istioOperatorYamlPath + " - " + err.Error())
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	pathToInstall := filepath.Join(tmpDir, "istio-"+i.GetVersion(), "bin", "istioctl")
-
-	fullCmd := pathToInstall + " manifest install -yf " + yamlPathOnDisk
-	if out, err := helpers.RunProcEnv(fullCmd, tmpDir, i.Debug, env); err != nil {
+	fullCmd := istioctl + " manifest install -yf " + yamlPathOnDisk
+	if out, err := helpers.RunProc(fullCmd, tmpDir, i.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing istio: %s\n", out))
 	}
 
@@ -183,4 +192,23 @@ func (i Istio) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 func (k Istio) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	ui.Note().Msg("Upgrade not supported")
 	return nil
+}
+
+func (i Istio) fetchIstioctl(dir string) (string, error) {
+	err := helpers.DownloadFile(istioFetchScriptURL, istioFetchScript, dir)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Failed downloading install script from %s: %s", istioFetchScriptURL, err.Error()))
+	}
+
+	pathToFetchScript := filepath.Join(dir, istioFetchScript)
+
+	if err := os.Chmod(pathToFetchScript, 0750); err != nil {
+		return "", errors.New(fmt.Sprintf("Failed changing the file mode of %s", pathToFetchScript))
+	}
+
+	env := []string{"ISTIO_VERSION=" + i.GetVersion()}
+	if out, err := helpers.RunProcEnv(pathToFetchScript, dir, i.Debug, env); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("Failed downloading istio: %s\n", out))
+	}
+	return filepath.Join(dir, "istio-"+i.GetVersion(), "bin", "istioctl"), nil
 }
