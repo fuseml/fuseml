@@ -66,6 +66,11 @@ type registeredExtensionService struct {
 	Credentials  []*registeredExtensionCredentials
 }
 
+// a query that can be run against the extension registry to retrieve 
+// (just a dummy structure for now)
+type registeredExtensionQuery struct{
+}
+
 // extension information as expected by extension registry
 type registeredExtension struct {
 	ID            *string
@@ -614,10 +619,26 @@ func GetRegisteredExtensions(options *kubernetes.InstallationOptions) ([]registe
 	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
 	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
 
-	resp, err := http.Get(fullURL)
+	query := registeredExtensionQuery{}
+
+	// need a client as simle http.Get does not support adding a body
+	client := &http.Client{}
+
+	reqBody, err := json.Marshal(query)
 	if err != nil {
 		return extensions, err
 	}
+
+	req, err := http.NewRequest("GET", fullURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return extensions, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return extensions, err
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 200 {
@@ -629,7 +650,7 @@ func GetRegisteredExtensions(options *kubernetes.InstallationOptions) ([]registe
 			return extensions, errors.Wrap(err, "failed to parse description file")
 		}
 	} else {
-		return extensions, errors.New(fmt.Sprintf("Unexepcted response from registry: %d", resp.StatusCode))
+		return extensions, errors.New(fmt.Sprintf("Unexpected response from registry: %d", resp.StatusCode))
 	}
 
 	return extensions, nil
