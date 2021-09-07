@@ -6,6 +6,7 @@ set -o pipefail
 
 CODESETS="sklearn tensorflow"
 WORKFLOW="mlflow-e2e"
+: ${RELEASE_BRANCH:="main"}
 
 print_bold() {
     echo
@@ -38,15 +39,17 @@ wait_for_run() {
     done
 }
 
+# when running for a release, assume the installer already fetched the latest released CLI version,
+# otherwise build the CLI from the corresponding release or main branch
 if ! git describe --tags --exact-match &> /dev/null; then
     print_bold "➤ Build FuseML client:"
     if [ -d "fuseml-core" ]; then
         cd fuseml-core
         git fetch origin
-        git reset --hard origin/main
+        git reset --hard origin/${RELEASE_BRANCH}
         git clean -f -d
     else
-        git clone https://github.com/fuseml/fuseml-core.git
+        git clone -b ${RELEASE_BRANCH} https://github.com/fuseml/fuseml-core.git
         cd fuseml-core
     fi
     make deps generate build_client
@@ -64,23 +67,17 @@ print_bold "➤ Checkout examples repository:"
 if [ -d "fuseml-examples" ]; then
     cd fuseml-examples
     git fetch origin
-    git reset --hard origin/main
+    git reset --hard origin/${RELEASE_BRANCH}
     git clean -f -d
     cd ..
 else
-    git clone --depth 1 https://github.com/fuseml/examples.git fuseml-examples
+    git clone -b ${RELEASE_BRANCH} https://github.com/fuseml/examples.git fuseml-examples
 fi
 
 for cs in ${CODESETS}; do
     print_bold "➤ Register Codeset: ${cs}"
     ./fuseml codeset register --name ${cs} --project mlflow fuseml-examples/codesets/mlflow/${cs}
 done
-
-export ACCESS=$(kubectl get secret -n fuseml-workloads mlflow-minio -o json | jq -r '.["data"]["accesskey"]' | base64 -d)
-export SECRET=$(kubectl get secret -n fuseml-workloads mlflow-minio -o json | jq -r '.["data"]["secretkey"]' | base64 -d)
-
-sed -i -e "/AWS_ACCESS_KEY_ID/{N;s/value: [^ \t]*/value: $ACCESS/}" fuseml-examples/workflows/${WORKFLOW}.yaml
-sed -i -e "/AWS_SECRET_ACCESS_KEY/{N;s/value: [^ \t]*/value: $SECRET/}" fuseml-examples/workflows/${WORKFLOW}.yaml
 
 print_bold "➤ Create Workflow: ${WORKFLOW}"
 # Delete workflow if already exists
