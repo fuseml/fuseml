@@ -160,7 +160,7 @@ fuseml-install:
 	@./dist/fuseml-installer install
 
 fuseml-install-with-extensions:
-	@./dist/fuseml-installer install --extensions mlflow,cert-manager,knative,kfserving
+	@./dist/fuseml-installer install --extensions mlflow,kfserving
 
 test-mlflow-e2e: build new-test-cluster fuseml-install-with-extensions mlflow-e2e delete-test-cluster
 
