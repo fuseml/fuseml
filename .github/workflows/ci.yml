@@ -129,5 +129,5 @@ jobs:
         run: |
            # extract the target branch in the context of which this job is running
            branch=${{ github.base_ref }}
-           [[ -z "$branch" ]] && branch=${{ github.ref }}
+           [[ -z "$branch" ]] && branch=${GITHUB_REF#refs/heads/}
            RELEASE_BRANCH=$branch make mlflow-e2e
