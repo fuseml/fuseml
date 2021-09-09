@@ -364,6 +364,11 @@ func (u *Message) WithAskInt(name string, result *int) *Message {
 	return u
 }
 
+// Verbose returns true if the verbosity level is high
+func (u *UI) Verbose() bool {
+	return u.verbosity > 0
+}
+
 func readBool() bool {
 	var value bool
 	fmt.Scanf("%b", &value)
