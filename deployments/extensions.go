@@ -66,9 +66,9 @@ type registeredExtensionService struct {
 	Credentials  []*registeredExtensionCredentials
 }
 
-// a query that can be run against the extension registry to retrieve 
+// a query that can be run against the extension registry to retrieve
 // (just a dummy structure for now)
-type registeredExtensionQuery struct{
+type registeredExtensionQuery struct {
 }
 
 // extension information as expected by extension registry
@@ -927,7 +927,7 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 			}
-
+			ui.Success().Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, subdomain))
 		}
 	}
 
