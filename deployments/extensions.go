@@ -309,7 +309,7 @@ func (e *Extension) executeScript(path string) error {
 	return nil
 }
 
-func (e *Extension) installManifest(path, ns string) error {
+func (e *Extension) installManifest(ui *ui.UI, path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
@@ -325,7 +325,7 @@ func (e *Extension) installManifest(path, ns string) error {
 	if ns != "" {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
-	out, err := helpers.Kubectl(kubectlCmd)
+	out, err := helpers.KubectlWithProgress(ui, kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -333,7 +333,7 @@ func (e *Extension) installManifest(path, ns string) error {
 	return nil
 }
 
-func (e *Extension) uninstallManifest(path, ns string) error {
+func (e *Extension) uninstallManifest(ui *ui.UI, path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
@@ -350,7 +350,7 @@ func (e *Extension) uninstallManifest(path, ns string) error {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
 
-	out, err := helpers.Kubectl(kubectlCmd)
+	out, err := helpers.KubectlWithProgress(ui, kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl delete failed:\n%s", out))
@@ -358,7 +358,7 @@ func (e *Extension) uninstallManifest(path, ns string) error {
 	return nil
 }
 
-func (e *Extension) installKustomize(path, ns string) error {
+func (e *Extension) installKustomize(ui *ui.UI, path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
@@ -374,7 +374,7 @@ func (e *Extension) installKustomize(path, ns string) error {
 	if ns != "" {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
-	out, err := helpers.Kubectl(kubectlCmd)
+	out, err := helpers.KubectlWithProgress(ui, kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -382,7 +382,7 @@ func (e *Extension) installKustomize(path, ns string) error {
 	return nil
 }
 
-func (e *Extension) uninstallKustomize(path, ns string) error {
+func (e *Extension) uninstallKustomize(ui *ui.UI, path, ns string) error {
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
 		return errors.Wrap(err, "can't create temp directory "+tmpDir)
@@ -398,7 +398,7 @@ func (e *Extension) uninstallKustomize(path, ns string) error {
 	if ns != "" {
 		kubectlCmd = kubectlCmd + " --namespace " + ns
 	}
-	out, err := helpers.Kubectl(kubectlCmd)
+	out, err := helpers.KubectlWithProgress(ui, kubectlCmd)
 
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("kubectl apply failed:\n%s", out))
@@ -532,12 +532,12 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 				return errors.Wrap(err, "failed to uninstall helm release "+e.Name)
 			}
 		case "manifest":
-			err := e.uninstallManifest(step.Location, ns)
+			err := e.uninstallManifest(ui, step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to uninstall kubernetes manifest from "+step.Location)
 			}
 		case "kustomize":
-			err := e.uninstallKustomize(step.Location, ns)
+			err := e.uninstallKustomize(ui, step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to uninstall using kustomize directory "+step.Location)
 			}
@@ -826,12 +826,12 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 				return errors.Wrap(err, "failed to install helm package from "+step.Location)
 			}
 		case "manifest":
-			err := e.installManifest(step.Location, ns)
+			err := e.installManifest(ui, step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to install kubernetes manifest from "+step.Location)
 			}
 		case "kustomize":
-			err := e.installKustomize(step.Location, ns)
+			err := e.installKustomize(ui, step.Location, ns)
 			if err != nil {
 				return errors.Wrap(err, "failed to install from kustomize directory "+step.Location)
 			}

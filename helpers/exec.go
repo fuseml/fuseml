@@ -112,6 +112,12 @@ func Kubectl(command string) (string, error) {
 	return RunProc(cmd, currentdir, false)
 }
 
+func KubectlWithProgress(ui *ui.UI, command string) (string, error) {
+	s := ui.Progressf(" Executing: kubectl %s", command)
+	defer s.Stop()
+	return Kubectl(command)
+}
+
 func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalFuncWithString) (string, error) {
 	s := ui.Progressf(" %s", message)
 	defer s.Stop()
