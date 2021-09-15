@@ -45,6 +45,9 @@ spec:
     matchLabels:
       app.kubernetes.io/name: fuseml-core
   replicas: 1
+  strategy:
+    # state is persisted locally and doesn't support shared (i.e. RWX) storage mode
+    type: Recreate
   template:
     metadata:
       labels:
