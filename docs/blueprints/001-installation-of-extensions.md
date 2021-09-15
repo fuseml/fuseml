@@ -82,8 +82,11 @@ Possible installation types for extensions:
 
 Location arguments:
 
-`location` it could be either URL or a local path relative to the extension directory.
-`values` pointing to values.yaml file of a helm chart - same as `location` could be URL or a local path
+`location`: could be either URL or a local path relative to the extension directory. If used together with a helm chart, `location` needs to point to tarball with the chart.
+
+`repo`, `chart`: specific to helm charts only. `repo` is the chart repository from which the chart with `chart` name should be installed. To use this combination `location` field must be empty.
+
+`values` pointing to values.yaml file of a helm chart - just like `location`, could be URL or a local path
 
 Namespace:
 
@@ -111,7 +114,6 @@ install:
         timeout: 300
 uninstall:
   - type: helm
-    location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
 gateways:
   - name: mlflow
     servicehost: mlflow
@@ -134,6 +136,16 @@ install:
 uninstall:
   - type: script
     location: uninstall.sh
+```
+
+```yaml
+name: seldon-core
+namespace: seldon-system
+install:
+  - type: helm
+    chart: seldon-core-operator
+    repo: https://storage.googleapis.com/seldon-charts
+    values: values.yaml
 ```
 
 ### Gateways

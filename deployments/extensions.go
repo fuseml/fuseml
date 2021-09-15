@@ -40,6 +40,8 @@ type waitForStep struct {
 type installStep struct {
 	Type      string
 	Location  string
+	Repo      string
+	Chart     string
 	Values    string
 	Namespace string
 	WaitFor   []waitForStep
@@ -406,8 +408,8 @@ func (e *Extension) uninstallKustomize(ui *ui.UI, path, ns string) error {
 	return nil
 }
 
-// TODO move under helpers
-func (e *Extension) installHelmChart(ui *ui.UI, name, chartPath, ns, valuesPath string) error {
+// Install helm chart. installStep provides the information about the chart location
+func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc installStep) error {
 
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
@@ -431,25 +433,41 @@ func (e *Extension) installHelmChart(ui *ui.UI, name, chartPath, ns, valuesPath 
 		return nil
 	}
 
-	tarName := filepath.Base(chartPath)
-	if err = helpers.DownloadFile(chartPath, tarName, tmpDir); err != nil {
-		return errors.Wrap(err, "can't download helm chart for "+name)
+	chartLocalPath := ""
+	if desc.Location != "" {
+		tarName := filepath.Base(desc.Location)
+		if err = helpers.DownloadFile(desc.Location, tarName, tmpDir); err != nil {
+			return errors.Wrap(err, "can't download helm chart for "+name)
+		}
+
+		chartLocalPath = filepath.Join(tmpDir, tarName)
+	} else if desc.Repo == "" {
+		return errors.New("Neither chart repository nor chart location was provided")
 	}
 
-	chartLocalPath := filepath.Join(tmpDir, tarName)
 	valuesLocalPath := ""
-
-	if valuesPath != "" {
-		valuesLocalPath, err = e.fetchFile(valuesPath, tmpDir)
+	if desc.Values != "" {
+		valuesLocalPath, err = e.fetchFile(desc.Values, tmpDir)
 		if err != nil {
-			return errors.Wrap(err, "failed fetching file from "+valuesPath)
+			return errors.Wrap(err, "failed fetching values file from "+desc.Values)
+		}
+		if _, err := os.Stat(valuesLocalPath); os.IsNotExist(err) {
+			return errors.New(fmt.Sprintf("values file %s does not exist", valuesLocalPath))
 		}
 	}
 
-	helmCmd = fmt.Sprintf("helm install %s --create-namespace --values '%s' --namespace %s --wait %s", name, valuesLocalPath, ns, chartLocalPath)
-	if ns == "" {
-		helmCmd = fmt.Sprintf("helm install %s --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
+	helmCmd = fmt.Sprintf("helm install %s --create-namespace --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
+	if chartLocalPath == "" && desc.Repo != "" {
+		if desc.Chart == "" {
+			return errors.New("Chart name not provided")
+		}
+		helmCmd = fmt.Sprintf("helm install %s %s --repo %s --create-namespace --values '%s' --wait", name, desc.Chart, desc.Repo, valuesLocalPath)
 	}
+	if ns != "" {
+		helmCmd = helmCmd + " --namespace " + ns
+	}
+	fmt.Println("executing helm ", helmCmd)
+	e.Debug = true
 	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
 		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
 	}
@@ -821,9 +839,13 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 		switch step.Type {
 		case "helm":
-			err := e.installHelmChart(ui, e.Name, step.Location, ns, step.Values)
+			err := e.installHelmChart(ui, e.Name, ns, step)
 			if err != nil {
-				return errors.Wrap(err, "failed to install helm package from "+step.Location)
+				message := "failed to install helm package from " + step.Location
+				if step.Location == "" {
+					message = fmt.Sprintf("failed to install helm package %s from %s ", step.Chart, step.Repo)
+				}
+				return errors.Wrap(err, message)
 			}
 		case "manifest":
 			err := e.installManifest(ui, step.Location, ns)
