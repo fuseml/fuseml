@@ -56,7 +56,7 @@ spec:
       serviceAccountName: fuseml-core
       containers:
       - name: fuseml-core
-        image: ghcr.io/fuseml/fuseml-core:v0.2
+        image: ghcr.io/fuseml/fuseml-core:v0.2.1
         imagePullPolicy: Always
         env:
           - name: GITEA_ADMIN_USERNAME
