@@ -35,7 +35,7 @@ spec:
       protocol: HTTP
     hosts:
     - "{{ .Host }}"
-
+{{ if .ServiceHost }}
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -56,6 +56,7 @@ spec:
         port:
           number: {{ .ServicePort }}
         host: {{ .ServiceHost }}
+{{ end }}
 `)
 	if err != nil {
 		return tmpFile.Name(), err
@@ -77,6 +78,5 @@ spec:
 	if err != nil {
 		return tmpFile.Name(), err
 	}
-
 	return Kubectl(fmt.Sprintf("apply --filename %s", tmpFile.Name()))
 }
