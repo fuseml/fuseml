@@ -860,7 +860,7 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 		case "script":
 			err := e.executeScript(step.Location)
 			if err != nil {
-				return errors.Wrap(err, "failed to uninstall using "+step.Location)
+				return errors.Wrap(err, "failed to install using "+step.Location)
 			}
 		default:
 			return errors.New("Unsupported step type: " + step.Type)
