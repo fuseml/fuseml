@@ -51,6 +51,7 @@ type istioGateway struct {
 	Namespace   string
 	Name        string
 	Port        int
+	HostPrefix  string
 	ServiceHost string
 }
 
@@ -466,7 +467,6 @@ func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc ins
 	if ns != "" {
 		helmCmd = helmCmd + " --namespace " + ns
 	}
-	fmt.Println("executing helm ", helmCmd)
 	e.Debug = true
 	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
 		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
@@ -940,16 +940,21 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			}
 
 			message := "Creating istio ingress gateway for " + g.Name
-			subdomain := g.Name + "." + domain
+			host := g.Name + "." + domain
+			// If host is provided, use it and not the name
+			// For example, we want 'seldon' as a name and '*.seldon' as a hostname prefix
+			if g.HostPrefix != "" {
+				host = g.HostPrefix + "." + domain
+			}
 			out, err := helpers.WaitForCommandCompletion(ui, message,
 				func() (string, error) {
-					return helpers.CreateIstioIngressGateway(g.Name, ns, subdomain, g.ServiceHost, g.Port)
+					return helpers.CreateIstioIngressGateway(g.Name, ns, host, g.ServiceHost, g.Port)
 				},
 			)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 			}
-			ui.Success().Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, subdomain))
+			ui.Success().Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, host))
 		}
 	}
 
