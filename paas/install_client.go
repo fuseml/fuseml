@@ -335,6 +335,16 @@ func (c *InstallClient) Upgrade(cmd *cobra.Command, options *kubernetes.Installa
 		return err
 	}
 
+	domain, err := options.GetOpt("system_domain", "")
+	if err != nil {
+		return err
+	}
+	details.Info("ensure system-domain")
+	err = c.fillInMissingSystemDomain(domain)
+	if err != nil {
+		return err
+	}
+
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Core{Timeout: DefaultTimeoutSec},
 	} {
