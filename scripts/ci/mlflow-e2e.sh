@@ -6,12 +6,21 @@ set -o pipefail
 
 CODESETS="sklearn tensorflow"
 WORKFLOW="mlflow-e2e"
+PREDICTION_FILE_SUFFIX=""
+PREDICTION_ENGINE="kfserving"
 : ${RELEASE_BRANCH:="main"}
 
 print_bold() {
     echo
     echo -e "\033[1m$1\033[0m"
 }
+
+if [ "${1-}" == "seldon" ] ; then
+    CODESETS="sklearn"
+    WORKFLOW="mlflow-seldon-e2e"
+    PREDICTION_FILE_SUFFIX="-seldon"
+    PREDICTION_ENGINE="seldon"
+fi
 
 wait_for_run() {
     retries=$1
@@ -107,21 +116,26 @@ for cs in ${CODESETS}; do
     print_bold "⛓  [${cs}] Prediction URL: ${PREDICTION_URL}"
 
     print_bold "➤ Perform prediction:"
-    data="fuseml-examples/prediction/data-${cs}.json"
+    data="fuseml-examples/prediction/data-${cs}${PREDICTION_FILE_SUFFIX}.json"
     curl -sd @${data} ${PREDICTION_URL} | jq
 
-    prediction=$(curl -sd @${data} $PREDICTION_URL)
+    prediction=$(curl -sd @${data} $PREDICTION_URL -H "Accept: application/json" -H "Content-Type: application/json")
 
-    case ${cs} in
-        sklearn)
-            result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
-            expected_result="6.486344809506676"
-            ;;
-        tensorflow)
-            result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
-            expected_result="0"
-            ;;
-    esac
+    if [ "${PREDICTION_ENGINE}" == "seldon" ]; then
+        result=$(jq -r ".data.ndarray[0]" <<< ${prediction})
+        expected_result="6.48634480912767"
+    else
+        case ${cs} in
+            sklearn)
+                result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
+                expected_result="6.486344809506676"
+                ;;
+            tensorflow)
+                result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
+                expected_result="0"
+                ;;
+        esac
+    fi
 
     if [[ "$result" != "${expected_result}" ]]; then
         print_bold "❌  Prediction result expected ${expected_result} but got ${result}"
