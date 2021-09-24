@@ -34,6 +34,18 @@ var roleRules = []rbacv1.PolicyRule{{
 	APIGroups: []string{"serving.kubeflow.org"},
 	Resources: []string{"inferenceservices"},
 	Verbs:     []string{"get", "list", "create", "patch", "watch"},
+}, {
+	APIGroups: []string{"machinelearning.seldon.io"},
+	Resources: []string{"seldondeployments"},
+	Verbs:     []string{"get", "list", "create", "patch", "watch"},
+}, {
+	APIGroups: []string{"networking.istio.io"},
+	Resources: []string{"gateways"},
+	Verbs:     []string{"get"},
+}, {
+	APIGroups: []string{"apps"},
+	Resources: []string{"deployments"},
+	Verbs:     []string{"get", "list", "watch"},
 }}
 
 func (k *Workloads) ID() string {
