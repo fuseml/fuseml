@@ -20,6 +20,7 @@ import (
 	"github.com/fuseml/fuseml/cli/kubernetes"
 	"github.com/fuseml/fuseml/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -157,6 +158,12 @@ type extensionDesc struct {
 	Gateways           []istioGateway
 	Services           []registeredExtensionService
 	ServiceCredentials []serviceCredentialTemplate
+	RoleRules          []roleRule
+}
+type roleRule struct {
+	ApiGroups []string
+	Resources []string
+	Verbs     []string
 }
 
 type Extension struct {
@@ -960,6 +967,17 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			if g.ServiceHost != "" {
 				ui.Success().KeeplineUnder(1).Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, host))
 			}
+		}
+	}
+	for _, rule := range e.Desc.RoleRules {
+		w := Workloads{}
+		err := w.updateWorkloadsRole(c, rbacv1.PolicyRule{
+			APIGroups: rule.ApiGroups,
+			Resources: rule.Resources,
+			Verbs:     rule.Verbs,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed updating workloads role")
 		}
 	}
 
