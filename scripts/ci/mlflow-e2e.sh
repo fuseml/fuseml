@@ -41,6 +41,9 @@ wait_for_run() {
             Failed)
                 print_bold "❌  Workflow run failed: "
                 kubectl get pipelineruns ${run_name} -n fuseml-workloads -o json | jq ".status"
+                failed=$(kubectl get pods -n fuseml-workloads --field-selector=status.phase=Failed -o jsonpath='{.items[0].metadata.name}')
+                kubectl describe pod $failed -n fuseml-workloads
+                kubectl logs $failed -n fuseml-workloads
                 exit 1
                 ;;
             *) break ;;
@@ -101,7 +104,7 @@ for cs in $CODESETS; do
     ./fuseml workflow list-runs --name ${WORKFLOW}
 done
 
-retries=121
+retries=181
 print_bold "⏱  Waiting $(((retries-1)*15/60))m for workflow runs to finish..."
 for cs in ${CODESETS}; do
     wait_for_run ${retries} ${cs} &
