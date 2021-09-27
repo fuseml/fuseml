@@ -467,7 +467,6 @@ func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc ins
 	if ns != "" {
 		helmCmd = helmCmd + " --namespace " + ns
 	}
-	e.Debug = true
 	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
 		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
 	}
