@@ -45,7 +45,7 @@ var extensionsOptions = kubernetes.InstallationOptions{
 		Value:       true,
 	},
 	{
-		Name:        "extension_repository",
+		Name:        "extensions_repository",
 		Description: "Path to extensions repository. Could be local directory or URL",
 		Type:        kubernetes.StringType,
 		Default:     config.DefaultExtensionsLocation(),

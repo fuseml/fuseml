@@ -171,7 +171,7 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 		return nil
 	}
 
-	extensionRepo, err := options.GetOpt("extension_repository", "")
+	extensionRepo, err := options.GetOpt("extensions_repository", "")
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 
 		switch action {
 		case "install":
-			c.ui.Note().Msg(fmt.Sprintf("Installing extension '%s'...", extension.Name))
+			c.ui.Note().KeeplineUnder(1).Msg(fmt.Sprintf("Installing extension '%s'...", extension.Name))
 			err = extension.Install(c.kubeClient, c.ui, options)
 			if err != nil {
 				return errors.New(fmt.Sprintf("Failed to install extension %s: %s", extension.Name, err.Error()))
@@ -222,13 +222,13 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 			// uninstall dependencies only when explicitly required on command line or with the command that uninstalls whole fuseml
 			// (https://github.com/fuseml/fuseml/issues/198)
 			if withDeps || helpers.StringInSlice(extensions, extension.Name) {
-				c.ui.Note().Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
+				c.ui.Note().KeeplineUnder(1).Msg(fmt.Sprintf("Unregistering extension '%s'...", extension.Name))
 				err = extension.UnRegister(c.kubeClient, c.ui, options)
 				if err != nil {
 					return errors.New(fmt.Sprintf("Failed to unregister extension %s: %s", extension.Name, err.Error()))
 				}
 
-				c.ui.Note().Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
+				c.ui.Note().KeeplineUnder(1).Msg(fmt.Sprintf("Removing extension '%s'...", extension.Name))
 				err = extension.Uninstall(c.kubeClient, c.ui, options)
 				if err != nil {
 					return errors.New(fmt.Sprintf("Failed to uninstall extension %s: %s", extension.Name, err.Error()))
