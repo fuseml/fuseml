@@ -78,8 +78,12 @@ jobs:
         run: |
           make test
 
-  mlflow-e2e:
+  e2e:
+    name: "${{ matrix.target }}"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: ["kfserving", "seldon"]
 
     steps:
       - name: Free disk space
@@ -122,14 +126,14 @@ jobs:
       - name: Create k8s cluster
         run: make new-test-cluster
 
-      - name: Install FuseML
+      - name: Install FuseML with "${{ matrix.target }}" extension
         run: |
           ./dist/fuseml-installer version
-          make fuseml-install-with-extensions
+          make fuseml-install-with-${{ matrix.target }}
 
-      - name: Run mlflow-e2e
+      - name: Run mlflow-e2e with "${{ matrix.target }}"
         run: |
            # extract the target branch in the context of which this job is running
            branch=${{ github.base_ref }}
            [[ -z "$branch" ]] && branch=${GITHUB_REF#refs/heads/}
-           RELEASE_BRANCH=$branch make mlflow-e2e
+           RELEASE_BRANCH=$branch make mlflow-${{ matrix.target }}-e2e

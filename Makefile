@@ -153,17 +153,27 @@ new-test-cluster:
 delete-test-cluster:
 	@./scripts/ci/k3d-cluster.sh delete
 
-mlflow-e2e:
+mlflow-kfserving-e2e:
 	@./scripts/ci/mlflow-e2e.sh
+
+mlflow-seldon-e2e:
+	@./scripts/ci/mlflow-e2e.sh seldon
 
 fuseml-install:
 	@./dist/fuseml-installer install
 
-fuseml-install-with-extensions:
+fuseml-install-with-all-extensions:
+	@./dist/fuseml-installer install --extensions mlflow,kfserving,seldon-core
+
+fuseml-install-with-kfserving:
 	@./dist/fuseml-installer install --extensions mlflow,kfserving
 
-test-mlflow-e2e: build new-test-cluster fuseml-install-with-extensions mlflow-e2e delete-test-cluster
+fuseml-install-with-seldon:
+	@./dist/fuseml-installer install --extensions mlflow,seldon-core
 
+test-mlflow-e2e: build new-test-cluster fuseml-install-with-kfserving mlflow-kfserving-e2e delete-test-cluster
+
+test-mlflow-seldon-e2e: build new-test-cluster fuseml-install-with-seldon mlflow-seldon-e2e delete-test-cluster
 
 ########################################################################
 # Kube dev environments
