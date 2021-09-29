@@ -92,6 +92,10 @@ Namespace:
 
 Each step could have it's own namespace. If it is missing, namespace of extension is used. If this is missing or empty fuseml-installer will not use any namespace during the step operation (this indeed might be the correct scenario for example when installing CRDs).
 
+Version:
+
+Version of the helm chart to use. Applies only for `helm` installation step type.
+
 #### Examples of extension files
 
 ```yaml
@@ -103,6 +107,7 @@ install:
   - type: helm
     location: https://github.com/fuseml/extensions/raw/charts/mlflow-0.0.1.tgz
     values: values.yaml
+    version: 1.2.3
   - type: script
     namespace: fuseml-workloads
     location: post-install.yaml
