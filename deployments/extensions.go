@@ -957,7 +957,9 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 			}
-			ui.Success().KeeplineUnder(1).Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, host))
+			if g.ServiceHost != "" {
+				ui.Success().KeeplineUnder(1).Msg(fmt.Sprintf("%s accessible at http://%s", g.Name, host))
+			}
 		}
 	}
 
