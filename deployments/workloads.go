@@ -39,9 +39,17 @@ var roleRules = []rbacv1.PolicyRule{{
 	Resources: []string{"seldondeployments"},
 	Verbs:     []string{"get", "list", "create", "patch", "watch"},
 }, {
+	APIGroups: []string{"intel.com"},
+	Resources: []string{"ovms"},
+	Verbs:     []string{"get", "list", "create", "patch", "watch"},
+}, {
 	APIGroups: []string{"networking.istio.io"},
 	Resources: []string{"gateways"},
 	Verbs:     []string{"get"},
+}, {
+	APIGroups: []string{"networking.istio.io"},
+	Resources: []string{"virtualservices"},
+	Verbs:     []string{"get", "list", "create", "patch", "watch"},
 }, {
 	APIGroups: []string{"apps"},
 	Resources: []string{"deployments"},
