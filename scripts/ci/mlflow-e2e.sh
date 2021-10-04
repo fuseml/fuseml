@@ -98,7 +98,7 @@ fi
 for cs in $CODESETS; do
     print_bold "➤ Assign Workflow to Codeset: ${cs}"
     ./fuseml workflow assign --name ${WORKFLOW} --codeset-name ${cs} --codeset-project mlflow
-    ./fuseml workflow list-runs --name ${WORKFLOW}
+    ./fuseml workflow list-runs --name ${WORKFLOW} --codeset-name ${cs} --codeset-project mlflow
 done
 
 retries=181
