@@ -6,7 +6,6 @@ set -o pipefail
 
 CODESETS="sklearn tensorflow"
 WORKFLOW="mlflow-e2e"
-PREDICTION_FILE_SUFFIX=""
 PREDICTION_ENGINE="kfserving"
 : ${RELEASE_BRANCH:="main"}
 
@@ -16,9 +15,7 @@ print_bold() {
 }
 
 if [ "${1-}" == "seldon" ] ; then
-    CODESETS="sklearn"
     WORKFLOW="mlflow-seldon-e2e"
-    PREDICTION_FILE_SUFFIX="-seldon"
     PREDICTION_ENGINE="seldon"
 fi
 
@@ -101,7 +98,7 @@ fi
 for cs in $CODESETS; do
     print_bold "➤ Assign Workflow to Codeset: ${cs}"
     ./fuseml workflow assign --name ${WORKFLOW} --codeset-name ${cs} --codeset-project mlflow
-    ./fuseml workflow list-runs --name ${WORKFLOW}
+    ./fuseml workflow list-runs --name ${WORKFLOW} --codeset-name ${cs} --codeset-project mlflow
 done
 
 retries=181
@@ -119,26 +116,29 @@ for cs in ${CODESETS}; do
     print_bold "⛓  [${cs}] Prediction URL: ${PREDICTION_URL}"
 
     print_bold "➤ Perform prediction:"
-    data="fuseml-examples/prediction/data-${cs}${PREDICTION_FILE_SUFFIX}.json"
-    curl -sd @${data} ${PREDICTION_URL} | jq
+    data="fuseml-examples/prediction/data-${cs}.json"
+    if [ "${PREDICTION_ENGINE}" = "seldon" -a "${cs}" = "sklearn" ]; then
+        data="fuseml-examples/prediction/data-${cs}-seldon.json"
+    fi
+    curl -sd @${data} ${PREDICTION_URL} -H "Accept: application/json" -H "Content-Type: application/json" | jq
 
     prediction=$(curl -sd @${data} $PREDICTION_URL -H "Accept: application/json" -H "Content-Type: application/json")
 
-    if [ "${PREDICTION_ENGINE}" == "seldon" ]; then
-        result=$(jq -r ".data.ndarray[0]" <<< ${prediction})
-        expected_result="6.48634480912767"
-    else
-        case ${cs} in
-            sklearn)
-                result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
-                expected_result="6.486344809506676"
-                ;;
-            tensorflow)
-                result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
-                expected_result="0"
-                ;;
-        esac
-    fi
+    case ${cs} in
+        sklearn)
+              if [ "${PREDICTION_ENGINE}" == "seldon" ]; then
+                    result=$(jq -r ".data.ndarray[0]" <<< ${prediction})
+                    expected_result="6.48634480912767"
+              else
+                    result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
+                    expected_result="6.486344809506676"
+              fi
+        ;;
+        tensorflow)
+              result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
+              expected_result="0"
+        ;;
+    esac
 
     if [[ "$result" != "${expected_result}" ]]; then
         print_bold "❌  Prediction result expected ${expected_result} but got ${result}"
