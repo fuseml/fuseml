@@ -31,26 +31,6 @@ var roleRules = []rbacv1.PolicyRule{{
 	Resources: []string{"secrets", "serviceaccounts"},
 	Verbs:     []string{"get", "create", "patch"},
 }, {
-	APIGroups: []string{"serving.kubeflow.org"},
-	Resources: []string{"inferenceservices"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"machinelearning.seldon.io"},
-	Resources: []string{"seldondeployments"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"intel.com"},
-	Resources: []string{"ovms"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"networking.istio.io"},
-	Resources: []string{"gateways"},
-	Verbs:     []string{"get"},
-}, {
-	APIGroups: []string{"networking.istio.io"},
-	Resources: []string{"virtualservices"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
 	APIGroups: []string{"apps"},
 	Resources: []string{"deployments"},
 	Verbs:     []string{"get", "list", "watch"},
