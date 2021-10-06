@@ -31,26 +31,6 @@ var roleRules = []rbacv1.PolicyRule{{
 	Resources: []string{"secrets", "serviceaccounts"},
 	Verbs:     []string{"get", "create", "patch"},
 }, {
-	APIGroups: []string{"serving.kubeflow.org"},
-	Resources: []string{"inferenceservices"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"machinelearning.seldon.io"},
-	Resources: []string{"seldondeployments"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"intel.com"},
-	Resources: []string{"ovms"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
-	APIGroups: []string{"networking.istio.io"},
-	Resources: []string{"gateways"},
-	Verbs:     []string{"get"},
-}, {
-	APIGroups: []string{"networking.istio.io"},
-	Resources: []string{"virtualservices"},
-	Verbs:     []string{"get", "list", "create", "patch", "watch"},
-}, {
 	APIGroups: []string{"apps"},
 	Resources: []string{"deployments"},
 	Verbs:     []string{"get", "list", "watch"},
@@ -287,6 +267,37 @@ func (w Workloads) createWorkloadsRole(c *kubernetes.Cluster) error {
 			},
 			Rules: roleRules,
 		}, metav1.CreateOptions{})
+	return err
+}
+
+// Update the role with new rule
+func (w Workloads) updateWorkloadsRole(c *kubernetes.Cluster, newRule rbacv1.PolicyRule) error {
+
+	role, err := c.Kubectl.RbacV1().Roles(WorkloadsDeploymentID).Get(
+		context.Background(),
+		WorkloadsDeploymentID,
+		metav1.GetOptions{},
+	)
+
+	for _, rule := range role.Rules {
+		// this is only a simple check for exact duplicates; we ignore the situation
+		// when e.g. the new rule is subset of existing one
+		if helpers.StringSlicesEqual(rule.APIGroups, newRule.APIGroups) &&
+			helpers.StringSlicesEqual(rule.Resources, newRule.Resources) &&
+			helpers.StringSlicesEqual(rule.Verbs, newRule.Verbs) {
+			return nil
+		}
+	}
+
+	role, err = c.Kubectl.RbacV1().Roles(WorkloadsDeploymentID).Update(
+		context.Background(),
+		&rbacv1.Role{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: WorkloadsDeploymentID,
+			},
+			Rules: append(role.Rules, newRule),
+		}, metav1.UpdateOptions{})
+
 	return err
 }
 
