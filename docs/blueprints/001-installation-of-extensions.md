@@ -96,6 +96,13 @@ Version:
 
 Version of the helm chart to use. Applies only for `helm` installation step type.
 
+RoleRules:
+
+Some extensions provide inference servers and usually are tied with specific Docker images. Containers based on such images are run as part of FuseML machine learning workflow, in Kubernetes cluster. Specific image might need specific rights to access certain Kubernetes objects; for example seldon-core prediction image needs read information from SeldonDeployment resource.
+
+When writing description for an extension, such rules can be provided under RoleRules value. The syntax is the same as for [Kubernetes Role object](https://kubernetes.io/docs/reference/access-authn-authz/rbac/), i.e. it is expected to contain ApiGroups, Resources and Verbs values. Look at the example for `seldon-core` extension bellow.
+
+
 #### Examples of extension files
 
 ```yaml
@@ -151,6 +158,17 @@ install:
     chart: seldon-core-operator
     repo: https://storage.googleapis.com/seldon-charts
     values: values.yaml
+rolerules:
+  - apigroups:
+      - machinelearning.seldon.io
+    resources:
+      - seldondeployments
+    verbs:
+      - get
+      - list
+      - create
+      - patch
+      - watch
 ```
 
 ### Gateways
@@ -164,7 +182,13 @@ After the instruction from installation step are executed, it would be wise to w
 `waitfor` may indicate specific condition the installer should wait for. It takes the argument that could generally be passed to `kubectl wait` command.
 Currently supported arguments are `kind` (if missing, defaults to `pod`), `namespace`, `condition` (defaults to `ready`) `timeout` (in seconds; defaults to 300) and `selector`. If the value of `selector` is `all`, it is gonna wait for all resources of given kind to reach the condition. Otherwise the selector's value is treated like the value for `--selector` option of `kubectl wait` command.
 
-### Location
+### Dependencies
+
+Extensions can depend one on another. If a description file contains `requires` field, the value is expected to be a list of names of other extensions that are considered requirements for current one.
+
+Fuseml-installer will take care that such required extensions get installed in the right order, so they do not need to be explicitly listed on the command line.
+
+### Location of extension files
 
 Default location of extension description is github repository owned by FuseML project.
 We can use https://github.com/fuseml/extensions, however this repository currently hosts Docker images for extensions used during the FuseML workflow.
@@ -176,8 +200,4 @@ To distinguish from instalation description files, we just need to pick proper d
 
 `extensions/charts` for Helm charts
 
-### Dependencies
 
-Extensions can depend one on another. If a description file contains `requires` field, the value is expected to be a list of names of other extensions that are considered requirements for current one.
-
-Fuseml-installer will take care that such required extensions get installed in the right order, so they do not need to be explicitly listed on the command line.
