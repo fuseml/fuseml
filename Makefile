@@ -145,7 +145,8 @@ seldon-install:
 	@./scripts/seldon-operator-install.sh
 
 k3d-install:
-	export TAG=v4.4.7 && curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
+	curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
+	k3d version
 
 new-test-cluster:
 	@./scripts/ci/k3d-cluster.sh create
