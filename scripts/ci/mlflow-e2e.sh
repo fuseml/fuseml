@@ -4,7 +4,7 @@ set -e
 set -u
 set -o pipefail
 
-CODESETS="sklearn tensorflow"
+CODESETS="sklearn tensorflow onnx"
 WORKFLOW="mlflow-e2e"
 PREDICTION_ENGINE="kfserving"
 : ${RELEASE_BRANCH:="main"}
@@ -17,6 +17,7 @@ print_bold() {
 if [ "${1-}" == "seldon" ] ; then
     WORKFLOW="mlflow-seldon-e2e"
     PREDICTION_ENGINE="seldon"
+    CODESETS="sklearn tensorflow"
 fi
 
 wait_for_run() {
@@ -125,22 +126,21 @@ for cs in ${CODESETS}; do
     prediction=$(curl -sd @${data} $PREDICTION_URL -H "Accept: application/json" -H "Content-Type: application/json")
 
     case ${cs} in
-        sklearn)
-              if [ "${PREDICTION_ENGINE}" == "seldon" ]; then
-                    result=$(jq -r ".data.ndarray[0]" <<< ${prediction})
-                    expected_result="6.48634480912767"
-              else
-                    result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
-                    expected_result="6.486344809506676"
-              fi
-        ;;
+        sklearn|onnx)
+            if [ "${PREDICTION_ENGINE}" == "seldon" ]; then
+                result=$(jq -r ".data.ndarray[0]" <<< ${prediction})
+            else 
+                result=$(jq -r ".outputs[0].data[0]" <<< ${prediction})
+            fi
+            expected_result="6.4863448"
+            ;;
         tensorflow)
               result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
               expected_result="0"
         ;;
     esac
 
-    if [[ "$result" != "${expected_result}" ]]; then
+    if [[ "$result" != "${expected_result}"* ]]; then
         print_bold "❌  Prediction result expected ${expected_result} but got ${result}"
         exit 1
     fi
