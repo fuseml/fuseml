@@ -4,7 +4,12 @@ set -e
 set -u
 set -o pipefail
 
-CODESETS="sklearn tensorflow onnx"
+CODESETS="sklearn tensorflow"
+OPTIONAL_CODESETS=(keras onnx)
+size=${#OPTIONAL_CODESETS[@]}
+index=$((RANDOM % size))
+CODESETS="$CODESETS ${OPTIONAL_CODESETS[$index]}"
+
 WORKFLOW="mlflow-e2e"
 PREDICTION_ENGINE="kfserving"
 : ${RELEASE_BRANCH:="main"}
@@ -72,7 +77,6 @@ if ! git describe --tags --exact-match &> /dev/null; then
     rm -rf fuseml-core
 fi
 
-
 export FUSEML_SERVER_URL=http://$(kubectl get VirtualService -n fuseml-core fuseml-core -o jsonpath="{.spec.hosts[0]}")
 print_bold "⛓  FuseML URL: ${FUSEML_SERVER_URL}"
 ./fuseml version
@@ -89,6 +93,10 @@ else
 fi
 
 for cs in ${CODESETS}; do
+    if [ "${cs}" = "keras" ]; then
+        # Comment out cuda libraries to reduce memory usage/run time on CI
+        sed -i 's/^  - cu/#&/' fuseml-examples/codesets/mlflow/keras/conda.yaml
+    fi
     print_bold "➤ Register Codeset: ${cs}"
     ./fuseml codeset register --name ${cs} --project mlflow fuseml-examples/codesets/mlflow/${cs}
 done
@@ -145,8 +153,13 @@ for cs in ${CODESETS}; do
             expected_result="0"
             ;;
         keras)
-            result=$(jq -r ".predictions[0][]" <<< "${prediction}" | wc -l | tr -d ' ')
+            if [ "${PREDICTION_ENGINE}" == "kfserving" ]; then
+                result=$(jq -r ".outputs[0].data[]" <<< "${prediction}" | wc -l | tr -d ' ')
+            else
+                result=$(jq -r ".predictions[0][]" <<< "${prediction}" | wc -l | tr -d ' ')
+            fi
             expected_result="10"
+            ;;
     esac
 
     if [[ "$result" != "${expected_result}"* ]]; then
