@@ -1,6 +1,9 @@
 # Tekton operator version
 TEKTON_OPERATOR_VERSION=v0.49.0
 
+# Image URL to use all building/pushing image targets
+IMG ?= fuseml-installer:latest
+
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
@@ -164,6 +167,19 @@ fuseml-install-with-extensions:
 
 test-mlflow-e2e: build new-test-cluster fuseml-install-with-extensions mlflow-e2e delete-test-cluster
 
+
+########################################################################
+
+# Build the docker image
+docker-build: test
+	docker build . -t ${IMG} --build-arg LDFLAGS="$(LDFLAGS)"
+
+# Push the docker image
+docker-push:
+	docker push ${IMG}
+
+docker-release: test
+	docker buildx build . -t ${IMG} --build-arg LDFLAGS="$(LDFLAGS)" --platform linux/amd64,linux/arm64,linux/arm/v7 --push
 
 ########################################################################
 # Kube dev environments
