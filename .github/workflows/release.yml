@@ -1,6 +1,7 @@
 name: Release-pipeline
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -43,3 +44,50 @@ jobs:
           prerelease: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+
+      - name: Login to GHCR
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.13.7'
+
+      - name: Set image name and tag
+        run: |
+          case "${GITHUB_REF}" in
+            refs/heads/main)
+              TAG="dev"
+              ;;
+            refs/tags/v*)
+              TAG=${GITHUB_REF/refs\/tags\//}
+              ;;
+            *)
+              TAG=${GITHUB_REF/refs\/*\//}
+              ;;
+          esac
+          echo "IMG=ghcr.io/fuseml/fuseml-installer:${TAG}" >> $GITHUB_ENV
+
+      - name: Build image
+        run: |
+          make docker-build
+
+      - name: Push image
+        run: |
+          make docker-push
