@@ -295,8 +295,22 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if err != nil {
 		return err
 	}
-	details.Info("removing extensions")
-	if err := c.handleExtensions("uninstall", extensions.Value.([]string), options, true); err != nil {
+	exts := extensions.Value.([]string)
+	core := deployments.Core{}
+	if len(exts) == 0 && core.Installed(c.kubeClient) {
+		details.Info("removing all registered extensions")
+
+		registeredExts, err := deployments.GetRegisteredExtensions(options)
+		if err != nil {
+			return err
+		}
+		for _, ext := range registeredExts {
+			exts = append(exts, *ext.ID)
+		}
+	} else {
+		details.Info("removing selected extensions")
+	}
+	if err := c.handleExtensions("uninstall", exts, options, true); err != nil {
 		return err
 	}
 
