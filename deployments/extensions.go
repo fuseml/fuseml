@@ -539,18 +539,35 @@ func createNamespace(c *kubernetes.Cluster, ns string) error {
 	); err != nil {
 		return err
 	}
-	return nil
+	return c.LabelNamespace(coreDeploymentNamespace, kubernetes.FusemlDeploymentLabelKey, kubernetes.FusemlDeploymentLabelValue)
 }
 
 func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
 	namespace := e.Desc.Namespace
+
+	if namespace != "" {
+		if notOurs, _ := c.NamespaceExistsAndNotOwned(namespace); notOurs == true {
+			ui.Exclamation().Msg(fmt.Sprintf(
+				"Namespace %s was not created by FuseML; not deleting extension %s",
+				namespace, e.Name))
+			return nil
+		}
+	}
+
 	// based on installation type (script/helm/manifest), proceed with uninstallation of each install step
 	for _, step := range e.Desc.Uninstall {
 
 		ns := step.Namespace
 		if ns == "" {
 			ns = namespace
+		} else {
+			if notOurs, _ := c.NamespaceExistsAndNotOwned(ns); notOurs == true {
+				ui.Exclamation().Msg(fmt.Sprintf(
+					"Namespace exists but %s was not created by FuseML; skipping %s step of extension %s",
+					ns, step.Type, e.Name))
+				continue
+			}
 		}
 		switch step.Type {
 		case "helm":
@@ -831,14 +848,26 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 	namespace := e.Desc.Namespace
 	if namespace != "" {
+		// if namespace for an extension is already there (not created by FuseML), assume it is installed
+		if notOurs, _ := c.NamespaceExistsAndNotOwned(namespace); notOurs == true {
+			ui.Exclamation().Msg(fmt.Sprintf("Namespace %s is already present: assuming extension %s is already installed", namespace, e.Name))
+			return nil
+		}
 		if err := createNamespace(c, namespace); err != nil {
 			return err
 		}
 	}
+
 	// based on installation type (script/helm/manifest), proceed with execution of each install step
 	for _, step := range e.Desc.Install {
 		ns := step.Namespace
 		if ns != "" {
+			if notOurs, _ := c.NamespaceExistsAndNotOwned(ns); notOurs == true {
+				ui.Exclamation().Msg(fmt.Sprintf(
+					"Namespace exists but %s was not created by FuseML; skipping %s step of extension %s",
+					ns, step.Type, e.Name))
+				continue
+			}
 			if err := createNamespace(c, ns); err != nil {
 				return err
 			}
