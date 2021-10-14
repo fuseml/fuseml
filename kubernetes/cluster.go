@@ -429,6 +429,24 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 	return owned, nil
 }
 
+// NamespaceExistsAndNotOwned returns true only if the namespace exists
+// but was NOT created by fuseml
+func (c *Cluster) NamespaceExistsAndNotOwned(namespaceName string) (bool, error) {
+	exists, err := c.NamespaceExists(namespaceName)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+
+	owned, err := c.NamespaceLabelExists(namespaceName, FusemlDeploymentLabelKey)
+	if err != nil {
+		return false, err
+	}
+	return !owned, nil
+}
+
 // NamespaceExists checks if a namespace exists or not
 func (c *Cluster) NamespaceExists(namespaceName string) (bool, error) {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(context.Background(), namespaceName, metav1.GetOptions{})
