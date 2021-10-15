@@ -282,14 +282,7 @@ func (core Core) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		CoreDeploymentID,
 		metav1.GetOptions{})
 
-	if upgrade && apierrors.IsNotFound(err) {
-
-		ui.Exclamation().Msg(
-			fmt.Sprintf("%s not found in namespace %s. Upgrade not possible",
-				CoreDeploymentID, coreDeploymentNamespace))
-		return err
-
-	} else if !upgrade && err == nil {
+	if !upgrade && err == nil {
 
 		ui.Exclamation().Msg(
 			fmt.Sprintf("%s already present under %s namespace, skipping installation",
@@ -387,16 +380,30 @@ func (core Core) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	return nil
 }
 
-func (core Core) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+// Check if Core service is installed
+func (core Core) Installed(c *kubernetes.Cluster) bool {
+
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		coreDeploymentNamespace,
 		metav1.GetOptions{},
 	)
 	if apierrors.IsNotFound(err) {
+		return false
+	}
+	_, err = c.Kubectl.AppsV1().Deployments(coreDeploymentNamespace).Get(
+		context.Background(),
+		CoreDeploymentID,
+		metav1.GetOptions{})
+	return err == nil
+}
+
+func (core Core) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+	if !core.Installed(c) {
 		ui.Exclamation().Msg(
-			fmt.Sprintf("%s namespace not found! Was FuseML core properly installed?", coreDeploymentNamespace))
-		return err
+			fmt.Sprintf("%s not found in namespace %s. Upgrade not possible",
+				CoreDeploymentID, coreDeploymentNamespace))
+		return nil
 	}
 	return core.apply(c, ui, options, true)
 }
