@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -274,7 +275,7 @@ func (e *Extension) fetchFile(filePath, tmpDir string) (string, error) {
 // Pass the path string and return the absolute location of the directory
 // If the path is relative, join it with the base repository path; if
 // the path is URL, return the URL
-func (e *Extension) getDirectoryPath(dirPath, tmpDir string) (string, error) {
+func (e *Extension) getDirectoryPath(dirPath string) (string, error) {
 
 	// 1, local path is absolute, return right away
 	if filepath.IsAbs(dirPath) {
@@ -290,11 +291,50 @@ func (e *Extension) getDirectoryPath(dirPath, tmpDir string) (string, error) {
 	if u.IsAbs() && u.Host != "" {
 		return dirPath, nil
 	}
-	// do not support relative path to main URL, the base URL is different for files and
-	// kustomize directories...
 
-	// 3. relative path to extension's local path
-	return filepath.Join(e.Repository, e.Name, dirPath), nil
+	// 3.a. path relative to the extension's local path
+	if filepath.IsAbs(e.Repository) {
+		return filepath.Join(e.Repository, e.Name, dirPath), nil
+	}
+
+	// 3.a. path relative to main repository URL
+	u, _ = url.Parse(e.Repository)
+	u.Path = path.Join(u.Path, e.Name, dirPath)
+	return u.String(), nil
+}
+
+// Construct a Kustomize path based on the input dirPath and the
+// extension repository path. The input dirPath can be an absolute
+// (local) path, a URL, or a path relative to the extension repository
+// path or URL
+func (e *Extension) getKustomizePath(dirPath string) (string, error) {
+	dirPath, err := e.getDirectoryPath(dirPath)
+	if err != nil {
+		return "", err
+	}
+
+	// if the path is raw.githubusercontent.com URL, we need to convert it
+	// into a github.com URL
+	//
+	u, err := url.Parse(dirPath)
+	if err != nil || !u.IsAbs() || u.Host != "raw.githubusercontent.com" {
+		return dirPath, nil
+	}
+
+	// the input raw path is in the form:
+	//
+	// 	raw.githubusercontent.com/${user}/${repo}/${branch}/${path}
+	//
+	// the output Kustomize path needs to be in the form:
+	//
+	//  github.com/${user}/${repo}/${path}?ref=${branch}
+	//
+	u.Host = "github.com"
+	urlPathTokens := strings.Split(u.Path, "/")
+	u.RawQuery = fmt.Sprintf("ref=%s", urlPathTokens[3])
+	u.Path = strings.Join(append(urlPathTokens[:3], urlPathTokens[4:]...), "/")
+
+	return u.String(), nil
 }
 
 func (e *Extension) executeScript(path string) error {
@@ -376,7 +416,7 @@ func (e *Extension) installKustomize(ui *ui.UI, path, ns string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	kustomizeDir, err := e.getDirectoryPath(path, tmpDir)
+	kustomizeDir, err := e.getKustomizePath(path)
 	if err != nil {
 		return errors.Wrap(err, "failed fetching directory from "+path)
 	}
@@ -400,7 +440,7 @@ func (e *Extension) uninstallKustomize(ui *ui.UI, path, ns string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	kustomizeDir, err := e.getDirectoryPath(path, tmpDir)
+	kustomizeDir, err := e.getKustomizePath(path)
 	if err != nil {
 		return errors.Wrap(err, "failed fetching directory from "+path)
 	}
