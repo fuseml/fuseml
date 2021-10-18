@@ -163,17 +163,23 @@ mlflow-kfserving-e2e:
 mlflow-seldon-e2e:
 	@./scripts/ci/mlflow-e2e.sh seldon
 
+mlflow-ovms-e2e:
+	@./scripts/ci/mlflow-e2e.sh ovms
+
 fuseml-install:
 	@./dist/fuseml-installer install
 
 fuseml-install-with-all-extensions:
-	@./dist/fuseml-installer install --extensions mlflow,kfserving,seldon-core
+	@./dist/fuseml-installer install --extensions mlflow,kfserving,seldon-core,ovms
 
 fuseml-install-with-kfserving:
 	@./dist/fuseml-installer install --extensions mlflow,kfserving
 
 fuseml-install-with-seldon:
 	@./dist/fuseml-installer install --extensions mlflow,seldon-core
+
+fuseml-install-with-ovms:
+	@./dist/fuseml-installer install --extensions mlflow,ovms
 
 test-mlflow-e2e: build new-test-cluster fuseml-install-with-kfserving mlflow-kfserving-e2e delete-test-cluster
 
