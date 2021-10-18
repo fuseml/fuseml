@@ -451,7 +451,7 @@ func (e *Extension) installHelmChart(ui *ui.UI, name, chartPath, ns, valuesPath 
 		helmCmd = fmt.Sprintf("helm install %s --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
 	}
 	if out, err := helpers.RunProc(helmCmd, currentdir, e.Debug); err != nil {
-		return errors.New(fmt.Sprintf("Failed installing %s chart: %s", name, out))
+		return errors.New(fmt.Sprintf("Failed installing %s chart (%s): %s", name, err, out))
 	}
 
 	return nil
