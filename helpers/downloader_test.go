@@ -13,11 +13,11 @@ import (
 )
 
 var _ = Describe("DownloadFile", func() {
-	var url string
+	var url,directory string
+	var err error
 
 	BeforeEach(func() {
-		directory, err := ioutil.TempDir("", "fuseml-test")
-		defer os.Remove(directory)
+		directory, err = ioutil.TempDir("", "fuseml-test")
 
 		file, err := os.Create(path.Join(directory, "thefile"))
 		Expect(err).ToNot(HaveOccurred())
@@ -30,15 +30,15 @@ var _ = Describe("DownloadFile", func() {
 
 		url = "http://" + dirURL + "/thefile"
 	})
+	AfterEach(func() {
+	        os.RemoveAll(directory)
+	})
+
 
 	It("downloads a url with filename under directory", func() {
-		targetDirectory, err := ioutil.TempDir("", "fuseml-test")
-		defer os.Remove(targetDirectory)
-
-		err = DownloadFile(url, "downloadedFile", targetDirectory)
+		err = DownloadFile(url, "downloadedFile", directory)
 		Expect(err).ToNot(HaveOccurred())
-		targetPath := path.Join(targetDirectory, "downloadedFile")
-		defer os.Remove(targetPath)
+		targetPath := path.Join(directory, "downloadedFile")
 
 		Expect(targetPath).To(BeARegularFile())
 
