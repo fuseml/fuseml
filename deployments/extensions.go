@@ -975,8 +975,14 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 			if kind == "" {
 				kind = "pod"
 			}
+			// Wait for a resource to exist before checking its status
+			if kind == "pod" && waitStep.Selector != "all" {
+				if err := c.WaitUntilPodBySelectorExist(ui, waitStep.Namespace, waitStep.Selector, timeout); err != nil {
+					return errors.Wrap(err, "failed while waiting for install step to finish")
+				}
+			}
 
-			message := fmt.Sprintf("waiting for install step to finish waiting for %s", kind)
+			message := fmt.Sprintf("waiting for install step to finish waiting for resource %s status to become %s", kind, condition)
 			out, err := helpers.WaitForCommandCompletion(ui, message,
 				func() (string, error) {
 					return helpers.Kubectl(fmt.Sprintf("wait --for=condition=%s %s --timeout=%ds -n %s %s",
