@@ -132,7 +132,7 @@ jobs:
       - name: Install FuseML with "${{ matrix.target }}" extension
         run: |
           ./dist/fuseml-installer version
-          make fuseml-install-with-${{ matrix.target }}
+          DEBUG=true make fuseml-install-with-${{ matrix.target }}
 
       - name: Run mlflow-e2e with "${{ matrix.target }}"
         run: |
