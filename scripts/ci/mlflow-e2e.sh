@@ -18,6 +18,10 @@ if [ "${1-}" == "seldon" ] ; then
     WORKFLOW="mlflow-seldon-e2e"
     PREDICTION_ENGINE="seldon"
     CODESETS="sklearn tensorflow"
+elif [ "${1-}" == "ovms" ] ; then
+    WORKFLOW="mlflow-ovms-e2e"
+    PREDICTION_ENGINE="ovms"
+    CODESETS="keras"
 fi
 
 wait_for_run() {
@@ -120,6 +124,8 @@ for cs in ${CODESETS}; do
     data="fuseml-examples/prediction/data-${cs}.json"
     if [ "${PREDICTION_ENGINE}" = "seldon" -a "${cs}" = "sklearn" ]; then
         data="fuseml-examples/prediction/data-${cs}-seldon.json"
+    elif [ "${PREDICTION_ENGINE}" = "ovms" ]; then
+        data="fuseml-examples/prediction/data-${cs}-ovms.json"
     fi
     curl -sd @${data} ${PREDICTION_URL} -H "Accept: application/json" -H "Content-Type: application/json" | jq
 
@@ -135,9 +141,12 @@ for cs in ${CODESETS}; do
             expected_result="6.4863448"
             ;;
         tensorflow)
-              result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
-              expected_result="0"
-        ;;
+            result=$(jq -r ".predictions[0].all_classes[0]" <<< ${prediction})
+            expected_result="0"
+            ;;
+        keras)
+            result=$(jq -r ".predictions[0][]" <<< "${prediction}" | wc -l | tr -d ' ')
+            expected_result="10"
     esac
 
     if [[ "$result" != "${expected_result}"* ]]; then
