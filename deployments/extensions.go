@@ -458,7 +458,7 @@ func (e *Extension) uninstallKustomize(ui *ui.UI, path, ns string) error {
 }
 
 // Install helm chart. installStep provides the information about the chart location
-func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc installStep) error {
+func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc installStep, reinstall bool) error {
 
 	tmpDir, err := ioutil.TempDir("", tmpSubDir)
 	if err != nil {
@@ -476,10 +476,16 @@ func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc ins
 		helmCmd = fmt.Sprintf("helm list --deployed -q | grep %s", name)
 	}
 
+	action := "install"
+
 	out, _ := helpers.RunProc(helmCmd, currentdir, e.Debug)
 	if strings.TrimSpace(out) == name {
-		ui.Exclamation().Msg(fmt.Sprintf("%s chart already present, skipping installation", name))
-		return nil
+		if reinstall {
+			action = "upgrade"
+		} else {
+			ui.Exclamation().Msg(fmt.Sprintf("%s chart already present, skipping installation", name))
+			return nil
+		}
 	}
 
 	chartLocalPath := ""
@@ -504,13 +510,12 @@ func (e *Extension) installHelmChart(ui *ui.UI, name string, ns string, desc ins
 			return errors.New(fmt.Sprintf("values file %s does not exist", valuesLocalPath))
 		}
 	}
-
-	helmCmd = fmt.Sprintf("helm install %s --create-namespace --values '%s' --wait %s", name, valuesLocalPath, chartLocalPath)
+	helmCmd = fmt.Sprintf("helm %s %s --create-namespace --values '%s' --wait %s", action, name, valuesLocalPath, chartLocalPath)
 	if chartLocalPath == "" && desc.Repo != "" {
 		if desc.Chart == "" {
 			return errors.New("Chart name not provided")
 		}
-		helmCmd = fmt.Sprintf("helm install %s %s --repo %s --create-namespace --values '%s' --wait", name, desc.Chart, desc.Repo, valuesLocalPath)
+		helmCmd = fmt.Sprintf("helm %s %s %s --repo %s --create-namespace --values '%s' --wait", action, name, desc.Chart, desc.Repo, valuesLocalPath)
 	}
 	if ns != "" {
 		helmCmd = helmCmd + " --namespace " + ns
@@ -884,17 +889,53 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 	return errors.New(fmt.Sprintf("Failed registering the extension. Server returns %s: ", buf.String()))
 }
 
+// Create a namespace for an extension; checks for existing first and reports the results.
+// Returns boolean value indicating if creating of namespace was skipped for some reason
+// (if namespace already exists but reinstall is requested and possible, method acts like it created the namespace)
+func (e *Extension) createNamespaceIfAppropriate(c *kubernetes.Cluster, ui *ui.UI, reinstall bool, namespace string) (bool, error) {
+
+	exists, _ := c.NamespaceExists(namespace)
+	if exists {
+		owned, err := c.NamespaceOwned(namespace)
+		if err != nil {
+			return false, err
+		}
+		if owned == false {
+			ui.Exclamation().Msg(fmt.Sprintf(
+				"Namespace %s is already present and not created by FuseML: assuming extension %s is already installed",
+				namespace, e.Name))
+			return true, nil
+		}
+		if !reinstall {
+			ui.Exclamation().Msg(fmt.Sprintf(
+				"Namespace %s is already present: assuming extension %s is already installed",
+				namespace, e.Name))
+			return true, nil
+		} else {
+			ui.Exclamation().Msg(fmt.Sprintf(
+				"Namespace %s is already present and reinstall requested", namespace))
+			return false, err
+		}
+	}
+	err := createNamespace(c, namespace)
+	return false, err
+}
+
 func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernetes.InstallationOptions) error {
 
+	reinstall, err := options.GetBool("force_reinstall", "")
+	if err != nil {
+		return errors.New("force_reinstall value not provided")
+	}
+
 	namespace := e.Desc.Namespace
+
 	if namespace != "" {
-		// if namespace for an extension is already there (not created by FuseML), assume it is installed
-		if notOurs, _ := c.NamespaceExistsAndNotOwned(namespace); notOurs == true {
-			ui.Exclamation().Msg(fmt.Sprintf("Namespace %s is already present: assuming extension %s is already installed", namespace, e.Name))
-			return nil
-		}
-		if err := createNamespace(c, namespace); err != nil {
+		skipped, err := e.createNamespaceIfAppropriate(c, ui, reinstall, namespace)
+		if err != nil {
 			return err
+		} else if skipped {
+			return nil
 		}
 	}
 
@@ -902,14 +943,11 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 	for _, step := range e.Desc.Install {
 		ns := step.Namespace
 		if ns != "" {
-			if notOurs, _ := c.NamespaceExistsAndNotOwned(ns); notOurs == true {
-				ui.Exclamation().Msg(fmt.Sprintf(
-					"Namespace exists but %s was not created by FuseML; skipping %s step of extension %s",
-					ns, step.Type, e.Name))
-				continue
-			}
-			if err := createNamespace(c, ns); err != nil {
+			skipped, err := e.createNamespaceIfAppropriate(c, ui, reinstall, ns)
+			if err != nil {
 				return err
+			} else if skipped {
+				continue
 			}
 		} else {
 			// use the top namespace (it can still be empty though)
@@ -918,7 +956,7 @@ func (e *Extension) Install(c *kubernetes.Cluster, ui *ui.UI, options *kubernete
 
 		switch step.Type {
 		case "helm":
-			err := e.installHelmChart(ui, e.Name, ns, step)
+			err := e.installHelmChart(ui, e.Name, ns, step, reinstall)
 			if err != nil {
 				message := "failed to install helm package from " + step.Location
 				if step.Location == "" {

@@ -30,6 +30,13 @@ var InstallOptions = kubernetes.InstallationOptions{
 		Default:     config.DefaultExtensionsLocation(),
 		Value:       "",
 	},
+	{
+		Name:        "force_reinstall",
+		Description: "Reinstall existing extensions (only if they were previously installed by FuseML)",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       true,
+	},
 }
 
 const (
