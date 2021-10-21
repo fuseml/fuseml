@@ -36,6 +36,11 @@ services:
     - name: registry
       port: 80
       targetPort: http
+    # Even though the registry does not listen on port 443, this is still required
+    # to prevent https://github.com/fuseml/fuseml/issues/174
+    - name: registry-https
+      port: 443
+      targetPort: 443
 
 ingress:
   enabled: false
