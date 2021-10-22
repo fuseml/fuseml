@@ -38,6 +38,13 @@ var extensionsOptions = kubernetes.InstallationOptions{
 		Value:       true,
 	},
 	{
+		Name:        "force_reinstall",
+		Description: "Reinstall existing extensions (only if they were previously installed by FuseML)",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       true,
+	},
+	{
 		Name:        "list",
 		Description: "List installed FuseML extensions",
 		Type:        kubernetes.BooleanType,

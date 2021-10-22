@@ -411,6 +411,14 @@ func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
 	return nil
 }
 
+func (c *Cluster) NamespaceOwned(namespaceName string) (bool, error) {
+	owned, err := c.NamespaceLabelExists(namespaceName, FusemlDeploymentLabelKey)
+	if err != nil {
+		return false, err
+	}
+	return owned, err
+}
+
 // NamespaceExistsAndOwned checks if the namespace exists
 // and is created by fuseml or not.
 func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
@@ -422,11 +430,7 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 		return false, nil
 	}
 
-	owned, err := c.NamespaceLabelExists(namespaceName, FusemlDeploymentLabelKey)
-	if err != nil {
-		return false, err
-	}
-	return owned, nil
+	return c.NamespaceOwned(namespaceName)
 }
 
 // NamespaceExistsAndNotOwned returns true only if the namespace exists
@@ -439,12 +443,11 @@ func (c *Cluster) NamespaceExistsAndNotOwned(namespaceName string) (bool, error)
 	if !exists {
 		return false, nil
 	}
-
-	owned, err := c.NamespaceLabelExists(namespaceName, FusemlDeploymentLabelKey)
+	owned, err := c.NamespaceOwned(namespaceName)
 	if err != nil {
 		return false, err
 	}
-	return !owned, nil
+	return !owned, err
 }
 
 // NamespaceExists checks if a namespace exists or not
