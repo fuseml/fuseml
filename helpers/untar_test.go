@@ -21,7 +21,7 @@ var _ = Describe("Untar", func() {
 	})
 
 	AfterEach(func() {
-	        os.RemoveAll(targetDirectory)
+		os.RemoveAll(targetDirectory)
 	})
 
 	It("untar the file to the specified directory", func() {

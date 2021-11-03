@@ -13,7 +13,7 @@ import (
 )
 
 var _ = Describe("DownloadFile", func() {
-	var url,directory string
+	var url, directory string
 	var err error
 
 	BeforeEach(func() {
@@ -31,9 +31,8 @@ var _ = Describe("DownloadFile", func() {
 		url = "http://" + dirURL + "/thefile"
 	})
 	AfterEach(func() {
-	        os.RemoveAll(directory)
+		os.RemoveAll(directory)
 	})
-
 
 	It("downloads a url with filename under directory", func() {
 		err = DownloadFile(url, "downloadedFile", directory)
