@@ -21,8 +21,8 @@ type Registry struct {
 
 const (
 	RegistryDeploymentID = "fuseml-registry"
-	registryVersion      = "0.3.2"
-	registryChartFile    = "trow-0.3.2.tgz"
+	registryVersion      = "0.3.3"
+	registryChartFile    = "trow-0.3.3.tgz"
 )
 
 func (k *Registry) ID() string {
