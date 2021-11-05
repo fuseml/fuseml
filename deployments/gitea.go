@@ -21,8 +21,8 @@ type Gitea struct {
 
 const (
 	GiteaDeploymentID = "gitea"
-	giteaVersion      = "1.14.3"
-	giteaChartURL     = "https://dl.gitea.io/charts/gitea-4.0.1.tgz"
+	giteaVersion      = "1.15.3"
+	giteaChartURL     = "https://dl.gitea.io/charts/gitea-4.1.1.tgz"
 )
 
 func (k *Gitea) ID() string {
