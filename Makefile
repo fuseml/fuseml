@@ -1,5 +1,5 @@
 # Tekton operator version
-TEKTON_OPERATOR_VERSION=v0.49.0
+TEKTON_OPERATOR_VERSION=v0.51.2
 
 # Image URL to use all building/pushing image targets
 IMG ?= fuseml-installer:latest
