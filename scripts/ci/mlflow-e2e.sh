@@ -6,7 +6,7 @@ set -o pipefail
 
 CODESETS="sklearn tensorflow onnx"
 WORKFLOW="mlflow-e2e"
-PREDICTION_ENGINE="kfserving"
+PREDICTION_ENGINE="kserve"
 : ${RELEASE_BRANCH:="main"}
 
 print_bold() {

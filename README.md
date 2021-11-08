@@ -12,17 +12,18 @@ Build your own custom MLOps orchestration workflows from composable automation r
 
 Use FuseML to build a coherent stack of community shared AI/ML tools to run your ML operations. FuseML is powered by a flexible framework designed for consistent operations and a rich collection of integration formulas reflecting real world use cases that help you reduce technical debt and avoid vendor lock-in.
 
-* Curious to find out more ? Read the [FuseML Documentation](https://fuseml.github.io/docs)
-* Follow our [quickstart guide](https://fuseml.github.io/docs/quickstart.html) and have your first MLOps workflow up and running in no time 
-* Join our [community Slack channel](https://join.slack.com/t/fuseml/shared_invite/zt-rcs6kepe-rGrMzlj0hrRlalcahWzoWg) to ask questions and receive announcements about upcoming features and releases
-* Contemplating becoming a contributor ? Find out [how](https://fuseml.github.io/docs/CONTRIBUTING.html) 
-* Watch some of the [FuseML Tutorial and Talk Videos or recorded Communitiy Meetings](https://www.youtube.com/channel/UCQLoLTikJDDMXvywWd27FBg) 
+- Curious to find out more ? Read the [FuseML Documentation](https://fuseml.github.io/docs)
+- Follow our [quickstart guide](https://fuseml.github.io/docs/quickstart.html) and have your first MLOps workflow up and running in no time
+- Join our [community Slack channel](https://join.slack.com/t/fuseml/shared_invite/zt-rcs6kepe-rGrMzlj0hrRlalcahWzoWg) to ask questions and receive announcements about upcoming features and releases
+- Contemplating becoming a contributor ? Find out [how](https://fuseml.github.io/docs/CONTRIBUTING.html)
+- Watch some of the [FuseML Tutorial and Talk Videos or recorded Communitiy Meetings](https://www.youtube.com/channel/UCQLoLTikJDDMXvywWd27FBg)
 
 ## Inception and Roadmap
 
 FuseML originated as a fork of our sister open source project [Epinio](https://github.com/epinio/epinio), a lightweight open source PaaS built on top of Kubernetes, then has been gradually transformed and infused with the MLOps concepts that make it the AI/ML orchestration tool that it is today.
 
 The project is under heavy development following the main directions:
+
 1. adding features and enhancements to improve flexibility and extensibility
 2. adding support for more community shared AI/ML tools
 3. creating more composable automation blocks adapted to the existing as well as new AI/ML tools
@@ -43,28 +44,27 @@ The basic FuseML workflow can be described as an MLOps type of workflow that sta
 
 ### Experiment Tracking and Versioning
 
-* MLFlow
-* DVC (TBD)
+- MLFlow
+- DVC (TBD)
 
 ### Model Training
 
-* MLFlow
-* DeterminedAI (TBD)
+- MLFlow
+- DeterminedAI (TBD)
 
 ### Model Serving and Monitoring
 
-* KFServing
-* KNative Serving (coming soon)
-* Seldon Core (coming soon)
+- KServe
+- Seldon Core (coming soon)
+- Knative Serving (coming soon)
 
 ## Project Layout
 
 This repository contains the code for the FuseML installer and is the main project repository. Other repositories of interest are:
 
-* https://github.com/fuseml/fuseml-core - the FuseML core service and CLI
-* https://github.com/fuseml/examples - collection of sample ML applications and workflows that can be used to showcase FuseML capabilities 
-* https://github.com/fuseml/extensions - collection of FuseML extensions adapting 3rd party AI/ML tools to the FuseML MLOps workflow mechanisms
-* https://github.com/fuseml/docs - main documentation for the project 
-* https://github.com/fuseml/fuseml.github.io - sources for the FuseML website 
-* https://github.com/fuseml/wiki - staging for the wiki pages 
-
+- https://github.com/fuseml/fuseml-core - the FuseML core service and CLI
+- https://github.com/fuseml/examples - collection of sample ML applications and workflows that can be used to showcase FuseML capabilities
+- https://github.com/fuseml/extensions - collection of FuseML extensions adapting 3rd party AI/ML tools to the FuseML MLOps workflow mechanisms
+- https://github.com/fuseml/docs - main documentation for the project
+- https://github.com/fuseml/fuseml.github.io - sources for the FuseML website
+- https://github.com/fuseml/wiki - staging for the wiki pages
