@@ -117,7 +117,7 @@ print_bold "➤ List Applications:"
 ./fuseml application list
 
 for cs in ${CODESETS}; do
-    PREDICTION_URL=$(./fuseml application get -n mlflow-${cs} --format json | jq -r ".url")
+    PREDICTION_URL=$(./fuseml application get -n mlflow-${cs}-${WORKFLOW} --format json | jq -r ".url")
     print_bold "⛓  [${cs}] Prediction URL: ${PREDICTION_URL}"
 
     print_bold "➤ Perform prediction:"
