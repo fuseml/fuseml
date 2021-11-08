@@ -84,7 +84,7 @@ gitlint:
 
 .PHONY: tools
 tools:
-	go get github.com/rakyll/statik
+	go install github.com/rakyll/statik
 
 update_registry:
 	helm package ./assets/trow/ -d embedded-files
