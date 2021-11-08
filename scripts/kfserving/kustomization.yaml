@@ -1,6 +1,0 @@
-resources:
-  - base/kfserving.yaml
-
-patchesStrategicMerge:
-  - overlay/config-map.yaml
-  - overlay/virtual-service.yaml
