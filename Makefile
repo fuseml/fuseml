@@ -1,5 +1,5 @@
 # Tekton operator version
-TEKTON_OPERATOR_VERSION=v0.49.0
+TEKTON_OPERATOR_VERSION=v0.51.2
 
 # Image URL to use all building/pushing image targets
 IMG ?= fuseml-installer:latest
@@ -56,8 +56,8 @@ test-acceptance-traefik: embed_files
 test-acceptance-knative: embed_files
 	@./scripts/test-acceptance.sh -- -serve=knative
 
-test-acceptance-kfserving: embed_files
-	@./scripts/test-acceptance.sh -- -serve=kfserving
+test-acceptance-kserve: embed_files
+	@./scripts/test-acceptance.sh -- -serve=kserve
 
 test-acceptance-seldon_mlflow: embed_files
 	@./scripts/test-acceptance.sh -- -serve=seldon_mlflow
@@ -157,7 +157,7 @@ new-test-cluster:
 delete-test-cluster:
 	@./scripts/ci/k3d-cluster.sh delete
 
-mlflow-kfserving-e2e:
+mlflow-kserve-e2e:
 	@./scripts/ci/mlflow-e2e.sh
 
 mlflow-seldon-e2e:
@@ -170,10 +170,10 @@ fuseml-install:
 	@./dist/fuseml-installer install
 
 fuseml-install-with-all-extensions:
-	@./dist/fuseml-installer install --extensions mlflow,kfserving,seldon-core,ovms
+	@./dist/fuseml-installer install --extensions mlflow,kserve,seldon-core,ovms
 
-fuseml-install-with-kfserving:
-	@./dist/fuseml-installer install --extensions mlflow,kfserving
+fuseml-install-with-kserve:
+	@./dist/fuseml-installer install --extensions mlflow,kserve
 
 fuseml-install-with-seldon:
 	@./dist/fuseml-installer install --extensions mlflow,seldon-core
@@ -181,7 +181,7 @@ fuseml-install-with-seldon:
 fuseml-install-with-ovms:
 	@./dist/fuseml-installer install --extensions mlflow,ovms
 
-test-mlflow-e2e: build new-test-cluster fuseml-install-with-kfserving mlflow-kfserving-e2e delete-test-cluster
+test-mlflow-e2e: build new-test-cluster fuseml-install-with-kserve mlflow-kserve-e2e delete-test-cluster
 
 test-mlflow-seldon-e2e: build new-test-cluster fuseml-install-with-seldon mlflow-seldon-e2e delete-test-cluster
 

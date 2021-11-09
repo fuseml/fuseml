@@ -25,7 +25,7 @@ type Istio struct {
 const (
 	istioDeploymentID        = "istio"
 	istioDeploymentNamespace = "istio-system"
-	istioVersion             = "1.10.2"
+	istioVersion             = "1.11.4"
 	istioFetchScriptURL      = "https://git.io/getLatestIstio"
 	istioFetchScript         = "getLatestIstio.sh"
 	istioOperatorYamlPath    = "istio/istio-minimal-operator.yaml"

@@ -146,10 +146,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 
 		for _, crd := range []string{
-			"tektonaddons.operator.tekton.dev",
 			"tektonconfigs.operator.tekton.dev",
 			"tektondashboards.operator.tekton.dev",
+			"tektoninstallersets.operator.tekton.dev",
 			"tektonpipelines.operator.tekton.dev",
+			"tektonresults.operator.tekton.dev",
 			"tektontriggers.operator.tekton.dev",
 		} {
 			message := fmt.Sprintf("Establish CRD %s", crd)

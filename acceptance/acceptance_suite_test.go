@@ -91,9 +91,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		installKnative()
 	}
 
-	if serve == "kfserving" {
-		fmt.Printf("Installing KFServing on node %d\n", config.GinkgoConfig.ParallelNode)
-		installKfserving()
+	if serve == "kserve" {
+		fmt.Printf("Installing KServe on node %d\n", config.GinkgoConfig.ParallelNode)
+		installKserve()
 	}
 
 	if strings.Contains(serve, "seldon") {
@@ -180,10 +180,10 @@ func installKnative() {
 	}
 }
 
-func installKfserving() {
-	_, err := RunProc("make kfserving-install", "..", true)
+func installKserve() {
+	_, err := RunProc("make kserve-install", "..", true)
 	if err != nil {
-		panic("Installing KFServing failed: " + err.Error())
+		panic("Installing KServe failed: " + err.Error())
 	}
 }
 
