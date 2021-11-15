@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: ["kserve", "seldon", "ovms"]
+        target: ["kserve", "seldon", "seldon-triton", "ovms"]
 
     steps:
       - name: Free disk space

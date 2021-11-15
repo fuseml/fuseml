@@ -163,6 +163,9 @@ mlflow-kserve-e2e:
 mlflow-seldon-e2e:
 	@./scripts/ci/mlflow-e2e.sh seldon
 
+mlflow-seldon-triton-e2e:
+	@./scripts/ci/mlflow-e2e.sh seldon triton
+
 mlflow-ovms-e2e:
 	@./scripts/ci/mlflow-e2e.sh ovms
 
@@ -176,6 +179,9 @@ fuseml-install-with-kserve:
 	@./dist/fuseml-installer install --extensions mlflow,kserve
 
 fuseml-install-with-seldon:
+	@./dist/fuseml-installer install --extensions mlflow,seldon-core
+
+fuseml-install-with-seldon-triton:
 	@./dist/fuseml-installer install --extensions mlflow,seldon-core
 
 fuseml-install-with-ovms:
