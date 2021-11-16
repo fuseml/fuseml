@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
 
 	"github.com/fuseml/fuseml/cli/helpers"
@@ -172,17 +174,32 @@ type Extension struct {
 	Repository             string
 	Debug                  bool
 	Timeout                int
+	httpClient             *http.Client
 	Desc                   *extensionDesc
 	TransformedCredentials map[string]map[string]map[string]string
 }
 
-func NewExtension(name, repository string, timeout int) *Extension {
+func NewHttpClient(debug bool) *http.Client {
+	retryClient := retryablehttp.NewClient()
+
+	if !debug {
+		// suppress the regular logger output (it logs all debug messages),
+		// it should suffice to return the final failure of http requests
+		retryClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
+	}
+
+	return retryClient.StandardClient()
+}
+
+func NewExtension(name, repository string, timeout int, debug bool) *Extension {
+
 	return &Extension{
 		Name:       name,
 		Repository: repository,
 		Desc:       &extensionDesc{},
-		Debug:      false,
+		Debug:      debug,
 		Timeout:    timeout,
+		httpClient: NewHttpClient(debug),
 	}
 }
 
@@ -644,7 +661,6 @@ func (e *Extension) Uninstall(c *kubernetes.Cluster, ui *ui.UI, options *kuberne
 			if err := deleteNamespace(c, ui, step.Namespace); err != nil {
 				return err
 			}
-
 		}
 	}
 	// delete namespace if it was specific to extension
@@ -666,27 +682,24 @@ func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubern
 	fusemlURL := fmt.Sprintf("http://%s.%s", CoreDeploymentID, domain)
 	fullURL := fmt.Sprintf("%s/extensions/%s", fusemlURL, e.Desc.Name)
 
-	// no direct Delete method so we have to create a client and a request
-	client := &http.Client{}
-
 	req, err := http.NewRequest("DELETE", fullURL, nil)
 	if err != nil {
 		return err
 	}
 
-	resp, err := client.Do(req)
+	resp, err := e.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 204 {
+	if resp.StatusCode == http.StatusNoContent {
 		return nil
 	}
 
 	// no such extension found, that might be OK...
-	if resp.StatusCode == 404 {
+	if resp.StatusCode == http.StatusNotFound {
 		return nil
 	}
 
@@ -698,7 +711,7 @@ func (e *Extension) UnRegister(c *kubernetes.Cluster, ui *ui.UI, options *kubern
 }
 
 // Read all extensions stored in extensions repository
-func GetRegisteredExtensions(options *kubernetes.InstallationOptions) ([]registeredExtension, error) {
+func GetRegisteredExtensions(options *kubernetes.InstallationOptions, client *http.Client) ([]registeredExtension, error) {
 
 	extensions := make([]registeredExtension, 0)
 	domain, err := options.GetString("system_domain", "")
@@ -710,9 +723,6 @@ func GetRegisteredExtensions(options *kubernetes.InstallationOptions) ([]registe
 	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
 
 	query := registeredExtensionQuery{}
-
-	// need a client as simle http.Get does not support adding a body
-	client := &http.Client{}
 
 	reqBody, err := json.Marshal(query)
 	if err != nil {
@@ -731,7 +741,7 @@ func GetRegisteredExtensions(options *kubernetes.InstallationOptions) ([]registe
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == http.StatusOK {
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, resp.Body)
 
@@ -757,9 +767,9 @@ func (e *Extension) isExtensionRegistered(fusemlURL string) (bool, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == http.StatusOK {
 		return true, nil
-	} else if resp.StatusCode == 404 {
+	} else if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	return false, errors.New(fmt.Sprintf("Unexpected response from registry: %d", resp.StatusCode))
@@ -801,7 +811,7 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 
 	registered, err := e.isExtensionRegistered(fusemlURL)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed checking if an extension is already registered")
 	}
 	if registered {
 		ui.Exclamation().Msg(fmt.Sprintf("Extension %s is already registered; if you want to update it, delete it first", e.Name))
@@ -872,13 +882,13 @@ func (e *Extension) Register(c *kubernetes.Cluster, ui *ui.UI, options *kubernet
 	}
 	fullURL := fmt.Sprintf("%s/extensions", fusemlURL)
 
-	resp, err := http.Post(fullURL, "application/json", bytes.NewBuffer(jsonValue))
+	resp, err := e.httpClient.Post(fullURL, "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 201 {
+	if resp.StatusCode == http.StatusCreated {
 		return nil
 	}
 

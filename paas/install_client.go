@@ -142,7 +142,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 // find out the required extensions for an extension that is passed as an argument
 // return list of all requirements, including the given extension itself
-func getRequirementsForExtension(extension *deployments.Extension, repo string) ([]*deployments.Extension, error) {
+func (c *InstallClient) getRequirementsForExtension(extension *deployments.Extension, repo string) ([]*deployments.Extension, error) {
 
 	ret := []*deployments.Extension{}
 	name := extension.Name
@@ -153,8 +153,8 @@ func getRequirementsForExtension(extension *deployments.Extension, repo string) 
 
 	for _, req := range extension.Desc.Requires {
 
-		reqExt := deployments.NewExtension(req, repo, DefaultTimeoutSec)
-		sortedRequiredExtensions, _ := getRequirementsForExtension(reqExt, repo)
+		reqExt := deployments.NewExtension(req, repo, DefaultTimeoutSec, c.ui.Verbose())
+		sortedRequiredExtensions, _ := c.getRequirementsForExtension(reqExt, repo)
 
 		for _, e := range sortedRequiredExtensions {
 			ret = append(ret, e)
@@ -183,9 +183,9 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 	// in first loop, go over extensions and find their dependencies
 	for _, name := range extensions {
 
-		extension := deployments.NewExtension(name, extensionRepo.Value.(string), DefaultTimeoutSec)
+		extension := deployments.NewExtension(name, extensionRepo.Value.(string), DefaultTimeoutSec, c.ui.Verbose())
 
-		requiredExtensions, err := getRequirementsForExtension(extension, extensionRepo.Value.(string))
+		requiredExtensions, err := c.getRequirementsForExtension(extension, extensionRepo.Value.(string))
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,8 @@ func (c *InstallClient) handleExtensions(action string, extensions []string, opt
 
 func (c *InstallClient) listRegisteredExtensions(options *kubernetes.InstallationOptions) error {
 
-	exts, err := deployments.GetRegisteredExtensions(options)
+	client := deployments.NewHttpClient(c.ui.Verbose())
+	exts, err := deployments.GetRegisteredExtensions(options, client)
 	if err != nil {
 		return err
 	}
