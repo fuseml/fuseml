@@ -464,6 +464,11 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 
 func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
+		coreDomain := c.fetchExistingDomain()
+		if coreDomain != "" {
+			domain.Value = coreDomain
+			return nil
+		}
 		service := "traefik"
 		if c.kubeClient.HasIstio() {
 			service = "istio-ingressgateway"
@@ -492,6 +497,25 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 	}
 
 	return nil
+}
+
+/* Check if core service is already installed; if so, fetch its its address
+ * from VirtualService
+ */
+func (c *InstallClient) fetchExistingDomain() string {
+	if !c.kubeClient.HasIstio() {
+		return ""
+	}
+
+	core := deployments.Core{}
+	if core.Installed(c.kubeClient) {
+		coreURL, err := helpers.Kubectl(fmt.Sprintf("get VirtualService -n fuseml-core fuseml-core -o jsonpath='{.spec.hosts[0]}'"))
+		if err == nil {
+			return coreURL[len("fuseml-core."):]
+		}
+		// no reason to fail on error, we can use other means for fetching ip...
+	}
+	return ""
 }
 
 func (c *InstallClient) fetchIP(ip *string, service string) error {
