@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fuseml/fuseml/cli/helpers"
 	"github.com/fuseml/fuseml/cli/kubernetes"
@@ -182,8 +183,16 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	if !upgrade {
-		if out, err := helpers.KubectlApplyEmbeddedYaml(tektonOperatorProfileYamlPath); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("installing %s failed:\n%s", tektonOperatorProfileYamlPath, out))
+		attempts := 3
+		sleep := 3 * time.Second
+		for i := 0; i < attempts; i++ {
+			if i > 0 {
+				time.Sleep(sleep)
+				sleep *= 2
+			}
+			if out, err := helpers.KubectlApplyEmbeddedYaml(tektonOperatorProfileYamlPath); i == (attempts-1) && err != nil {
+				return errors.Wrap(err, fmt.Sprintf("installing %s failed:\n%s", tektonOperatorProfileYamlPath, out))
+			}
 		}
 
 		out, err := helpers.WaitForKubernetesResourceToExist(ui, TektonDeploymentID, "namespace", TektonDeploymentID, k.Timeout)
