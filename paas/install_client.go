@@ -301,7 +301,8 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, options *kubernetes.Instal
 	if len(exts) == 0 && core.Installed(c.kubeClient) {
 		details.Info("removing all registered extensions")
 
-		registeredExts, err := deployments.GetRegisteredExtensions(options)
+		client := deployments.NewHttpClient(c.ui.Verbose())
+		registeredExts, err := deployments.GetRegisteredExtensions(options, client)
 		if err != nil {
 			return err
 		}
