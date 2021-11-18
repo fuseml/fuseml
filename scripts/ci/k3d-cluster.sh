@@ -8,7 +8,11 @@ CLUSTER_SUFIX=$(git symbolic-ref -q --short HEAD 2>/dev/null || git describe --t
 CLUSTER_NAME=fuseml-${CLUSTER_SUFIX//[!A-Za-z0-9-]/-}
 
 if [ "$1" == "create" ]; then
-    k3d_args="--k3s-arg --disable=traefik@server:* --agents 1"
+    k3d_args="--k3s-arg --disable=traefik@server:* --agents 1 \
+    --k3s-arg --kubelet-arg=eviction-hard=imagefs.available<5%,nodefs.available<5%@server:* \
+    --k3s-arg --kubelet-arg=eviction-minimum-reclaim=imagefs.available=5%,nodefs.available=5%@server:* \
+    --k3s-arg --kubelet-arg=eviction-hard=imagefs.available<5%,nodefs.available<5%@agent:* \
+    --k3s-arg --kubelet-arg=eviction-minimum-reclaim=imagefs.available=5%,nodefs.available=5%@agent:*"
 fi
 
 
