@@ -20,7 +20,7 @@ COPY kubernetes kubernetes/
 COPY paas paas/
 COPY statik statik/
 
-RUN go get github.com/rakyll/statik
+RUN go install github.com/rakyll/statik
 
 # Build
 RUN statik -m -f -src=./embedded-files
