@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup Ginkgo Test Framework
         run: |
-          go get -u github.com/onsi/ginkgo/ginkgo
+          go install github.com/onsi/ginkgo/ginkgo
 
       - name: Run unit tests
         run: |
