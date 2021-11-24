@@ -1,5 +1,6 @@
 name: Get fuseml-installer script
 on:
+  workflow_call:
   pull_request:
     paths:
       - "install.sh"
