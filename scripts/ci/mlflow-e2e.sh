@@ -18,6 +18,12 @@ if [ "${1-}" == "seldon" ] ; then
     WORKFLOW="mlflow-seldon-e2e"
     PREDICTION_ENGINE="seldon"
     CODESETS="sklearn tensorflow"
+    if [ "${2-}" == "triton" ] ; then
+        WORKFLOW="mlflow-seldon-triton-e2e"
+        CODESETS="keras"
+        # with triton based example, seldon uses kserve protocol
+        PREDICTION_ENGINE="kserve"
+    fi
 elif [ "${1-}" == "ovms" ] ; then
     WORKFLOW="mlflow-ovms-e2e"
     PREDICTION_ENGINE="ovms"
@@ -145,8 +151,13 @@ for cs in ${CODESETS}; do
             expected_result="0"
             ;;
         keras)
-            result=$(jq -r ".predictions[0][]" <<< "${prediction}" | wc -l | tr -d ' ')
+            if [ "${PREDICTION_ENGINE}" == "kserve" ]; then
+                result=$(jq -r ".outputs[0].data[]" <<< "${prediction}" | wc -l | tr -d ' ')
+            else
+                result=$(jq -r ".predictions[0][]" <<< "${prediction}" | wc -l | tr -d ' ')
+            fi
             expected_result="10"
+            ;;
     esac
 
     if [[ "$result" != "${expected_result}"* ]]; then
