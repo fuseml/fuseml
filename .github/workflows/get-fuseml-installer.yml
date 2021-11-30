@@ -2,9 +2,15 @@ name: Get fuseml-installer script
 on:
   workflow_call:
   pull_request:
+    branches:
+      - main
+      - release-*
     paths:
       - "install.sh"
   push:
+    branches:
+      - main
+      - release-*
     paths:
       - "install.sh"
 jobs:
