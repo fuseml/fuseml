@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches:
@@ -36,7 +37,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: "^1.16"
 
       - name: Cache Go modules
         uses: actions/cache@v2
@@ -60,7 +61,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: "^1.16"
 
       - name: Cache Go modules
         uses: actions/cache@v2
@@ -107,7 +108,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: "^1.16"
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
@@ -136,7 +137,7 @@ jobs:
 
       - name: Run mlflow-e2e with "${{ matrix.target }}"
         run: |
-           # extract the target branch in the context of which this job is running
-           branch=${{ github.base_ref }}
-           [[ -z "$branch" ]] && branch=${GITHUB_REF#refs/heads/}
-           RELEASE_BRANCH=$branch make mlflow-${{ matrix.target }}-e2e
+          # extract the target branch in the context of which this job is running
+          branch=${{ github.base_ref }}
+          [[ -z "$branch" ]] && branch=${GITHUB_REF#refs/heads/}
+          RELEASE_BRANCH=$branch make mlflow-${{ matrix.target }}-e2e

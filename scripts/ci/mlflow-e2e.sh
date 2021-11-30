@@ -76,6 +76,10 @@ if ! git describe --tags --exact-match &> /dev/null; then
     mv bin/fuseml ../fuseml
     cd ..
     rm -rf fuseml-core
+else
+    # when running from a release (tag), set release branch to match the branch from a tag
+    # eg v0.3.0 => release-0.3
+    RELEASE_BRANCH=release-$(echo $RELEASE_BRANCH | grep -oP "\d.\d")
 fi
 
 
